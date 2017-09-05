@@ -70,7 +70,7 @@ func updatePackageSpecWithFile(client *client.Client, pkgSpec *fission.PackageSp
 // createPackageFromFile is a function that helps to upload the content
 // of given file to controller to create a TPR package resource, and then
 // return a function package reference for further usage.
-func createPackageFromFile(client *client.Client, fnName string, fileName string) fission.FunctionPackageRef {
+func createPackageFromFile(client *client.Client, fnName string, fileName string, codepath string) fission.FunctionPackageRef {
 	pkgName := fmt.Sprintf("%v-%v", fnName, strings.ToLower(uniuri.NewLen(6)))
 	pkg := &tpr.Package{
 		Metadata: api.ObjectMeta{
@@ -89,6 +89,7 @@ func createPackageFromFile(client *client.Client, fnName string, fileName string
 			Name:      pkgName,
 			Namespace: pkg.Metadata.Namespace,
 		},
+		FunctionName: codepath,
 	}
 }
 
@@ -142,6 +143,8 @@ func fnCreate(c *cli.Context) error {
 		fatal("Need --code or --package to specify deployment package, or use --srcpkg to specify source package.")
 	}
 
+	codepath := c.String("codepath")
+
 	function := &tpr.Function{
 		Metadata: api.ObjectMeta{
 			Name:      fnName,
@@ -153,10 +156,10 @@ func fnCreate(c *cli.Context) error {
 	}
 
 	if len(srcPkgName) > 0 {
-		function.Spec.Source = createPackageFromFile(client, fnName, srcPkgName)
+		function.Spec.Source = createPackageFromFile(client, fnName, srcPkgName, codepath)
 	}
 	if len(deployPkgName) > 0 {
-		function.Spec.Deployment = createPackageFromFile(client, fnName, deployPkgName)
+		function.Spec.Deployment = createPackageFromFile(client, fnName, deployPkgName, codepath)
 	}
 
 	_, err := client.FunctionCreate(function)
@@ -268,6 +271,8 @@ func fnUpdate(c *cli.Context) error {
 		fatal("Need --env or --code or --package or --srcpkg argument.")
 	}
 
+	codepath := c.String("codepath")
+
 	// Now builder manager only starts a build if a function has a source package
 	// but no deployment package. This behavior will be changed after we move builds
 	// to package level (https://github.com/fission/fission/pull/297).
@@ -278,7 +283,7 @@ func fnUpdate(c *cli.Context) error {
 			err := updatePackageContents(client, function.Spec.Source.PackageRef.Name, srcPkgName)
 			checkErr(err, "update source package")
 		} else {
-			function.Spec.Source = createPackageFromFile(client, fnName, srcPkgName)
+			function.Spec.Source = createPackageFromFile(client, fnName, srcPkgName, codepath)
 		}
 	}
 
@@ -287,7 +292,7 @@ func fnUpdate(c *cli.Context) error {
 			err := updatePackageContents(client, function.Spec.Deployment.PackageRef.Name, deployPkgName)
 			checkErr(err, "update source package")
 		} else {
-			function.Spec.Deployment = createPackageFromFile(client, fnName, deployPkgName)
+			function.Spec.Deployment = createPackageFromFile(client, fnName, deployPkgName, codepath)
 		}
 	}
 
