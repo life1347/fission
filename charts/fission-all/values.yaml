@@ -35,6 +35,9 @@ functionNamespace: fission-function
 ## the release namespace)
 builderNamespace: fission-builder
 
+## Storage path for storage service
+storagePath: /tmp
+
 ## Set up openshift RBAC rule
 openshift: false
 
