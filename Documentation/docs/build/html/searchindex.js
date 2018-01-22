@@ -1,0 +1,1 @@
+Search.setIndex({docnames:["index"],envversion:52,filenames:["index.rst"],objects:{},objnames:{},objtypes:{},terms:{index:0,modul:0,page:0,search:0},titles:["Welcome to Fission: Serverless Functions for Kubernetes\u2019s documentation!"],titleterms:{"function":0,document:0,fission:0,indic:0,kubernet:0,serverless:0,tabl:0,welcom:0}})
