@@ -6,7 +6,7 @@ ROOT=$(dirname $0)/../../..
 
 fn=nodejs-hello-$(date +%s)
 
- Create a hello world function in nodejs, test it with an http trigger
+# Create a hello world function in nodejs, test it with an http trigger
 echo "Pre-test cleanup"
 fission env delete --name nodejs || true
 
