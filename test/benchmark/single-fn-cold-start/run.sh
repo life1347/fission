@@ -4,8 +4,6 @@ set -euo pipefail
 
 ROOT=$(dirname $0)/../../..
 
-fn=nodejs-hello-$(date +%s)
-
 # Create a hello world function in nodejs, test it with an http trigger
 echo "Pre-test cleanup"
 fission env delete --name nodejs || true
@@ -18,6 +16,8 @@ sleep 10
 
 for i in {0..10}
 do
+    fn=nodejs-hello-$(date +%s)
+
     echo "Creating function"
     fission fn create --name $fn --env nodejs --code $ROOT/examples/nodejs/hello.js
 
