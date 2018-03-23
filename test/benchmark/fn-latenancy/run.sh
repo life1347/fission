@@ -27,15 +27,26 @@ sleep 5
 
 echo "Benchmarking for single cold-start time"
 
-for i in {0..10}
-do
-    # -e is not support in k6 official release yet.
-    # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
-    export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
+# -e is not support in k6 official release yet.
+# k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
+export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
+echo $FN_ENDPOINT >> time.txt
 
+# for firs time cold-start
+k6 run --vus 1 --duration 1s --rps 1 sample.js
+
+for i in {1..10}
+do
+    vus=$(($i * 10))
+    rps=$(($vus * 10))
     # extract average request time from output
-    k6 run --duration 60 --vus 100 sample.js | grep "http_req_duration" | awk '{print $2}'| sed 's/.*avg=*\(.*\).*/\1/' >> time.txt
-    # ab -n 1 -c 1 $FN_ENDPOINT
+    echo "k6 run --duration 60s --vus $vus --rps $rps sample.js" >> time.txt
+
+    for j in {1..50}
+    do
+        k6 run --duration 60s --vus $vus --rps $rps sample.js | grep "http_req_duration" | awk '{print $2}'| sed 's/.*avg=*\(.*\).*/\1/' >> time.txt
+        # ab -n 1 -c 1 $FN_ENDPOINT
+    done
 done
 
 fission fn delete --name $fn
@@ -44,4 +55,3 @@ fission fn delete --name $fn
 kubectl get httptrigger -o name | tail -1 | cut -f2 -d'/' | xargs kubectl delete httptrigger
 
 echo "All done."
-#!/usr/bin/env bash
