@@ -19,6 +19,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,11 @@ import (
 )
 
 func (c *Client) MessageQueueTriggerCreate(t *crd.MessageQueueTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission MessageQueueTrigger object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -78,6 +84,11 @@ func (c *Client) MessageQueueTriggerGet(m *metav1.ObjectMeta) (*crd.MessageQueue
 }
 
 func (c *Client) MessageQueueTriggerUpdate(mqTrigger *crd.MessageQueueTrigger) (*metav1.ObjectMeta, error) {
+	errs := mqTrigger.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission MessageQueueTrigger object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(mqTrigger)
 	if err != nil {
 		return nil, err

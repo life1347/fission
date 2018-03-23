@@ -19,6 +19,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,11 @@ import (
 )
 
 func (c *Client) TimeTriggerCreate(t *crd.TimeTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission TimeTrigger object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
@@ -78,6 +84,11 @@ func (c *Client) TimeTriggerGet(m *metav1.ObjectMeta) (*crd.TimeTrigger, error) 
 }
 
 func (c *Client) TimeTriggerUpdate(t *crd.TimeTrigger) (*metav1.ObjectMeta, error) {
+	errs := t.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission TimeTrigger object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(t)
 	if err != nil {
 		return nil, err

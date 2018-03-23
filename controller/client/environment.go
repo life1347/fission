@@ -19,6 +19,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,11 @@ import (
 )
 
 func (c *Client) EnvironmentCreate(env *crd.Environment) (*metav1.ObjectMeta, error) {
+	errs := env.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission Environment object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(env)
 	if err != nil {
 		return nil, err
@@ -78,6 +84,11 @@ func (c *Client) EnvironmentGet(m *metav1.ObjectMeta) (*crd.Environment, error) 
 }
 
 func (c *Client) EnvironmentUpdate(env *crd.Environment) (*metav1.ObjectMeta, error) {
+	errs := env.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission Environment object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(env)
 	if err != nil {
 		return nil, err

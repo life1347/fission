@@ -19,6 +19,7 @@ package crd
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/fission/fission"
 )
@@ -151,14 +152,14 @@ func (ht *HTTPTrigger) GetObjectKind() schema.ObjectKind {
 func (w *KubernetesWatchTrigger) GetObjectKind() schema.ObjectKind {
 	return &w.TypeMeta
 }
-func (w *TimeTrigger) GetObjectKind() schema.ObjectKind {
-	return &w.TypeMeta
+func (t *TimeTrigger) GetObjectKind() schema.ObjectKind {
+	return &t.TypeMeta
 }
-func (w *MessageQueueTrigger) GetObjectKind() schema.ObjectKind {
-	return &w.TypeMeta
+func (m *MessageQueueTrigger) GetObjectKind() schema.ObjectKind {
+	return &m.TypeMeta
 }
-func (w *Package) GetObjectKind() schema.ObjectKind {
-	return &w.TypeMeta
+func (p *Package) GetObjectKind() schema.ObjectKind {
+	return &p.TypeMeta
 }
 
 func (f *Function) GetObjectMeta() metav1.Object {
@@ -173,14 +174,14 @@ func (ht *HTTPTrigger) GetObjectMeta() metav1.Object {
 func (w *KubernetesWatchTrigger) GetObjectMeta() metav1.Object {
 	return &w.Metadata
 }
-func (w *TimeTrigger) GetObjectMeta() metav1.Object {
-	return &w.Metadata
+func (t *TimeTrigger) GetObjectMeta() metav1.Object {
+	return &t.Metadata
 }
-func (w *MessageQueueTrigger) GetObjectMeta() metav1.Object {
-	return &w.Metadata
+func (m *MessageQueueTrigger) GetObjectMeta() metav1.Object {
+	return &m.Metadata
 }
-func (w *Package) GetObjectMeta() metav1.Object {
-	return &w.Metadata
+func (p *Package) GetObjectMeta() metav1.Object {
+	return &p.Metadata
 }
 
 func (fl *FunctionList) GetObjectKind() schema.ObjectKind {
@@ -198,11 +199,11 @@ func (wl *KubernetesWatchTriggerList) GetObjectKind() schema.ObjectKind {
 func (wl *TimeTriggerList) GetObjectKind() schema.ObjectKind {
 	return &wl.TypeMeta
 }
-func (wl *MessageQueueTriggerList) GetObjectKind() schema.ObjectKind {
-	return &wl.TypeMeta
+func (ml *MessageQueueTriggerList) GetObjectKind() schema.ObjectKind {
+	return &ml.TypeMeta
 }
-func (wl *PackageList) GetObjectKind() schema.ObjectKind {
-	return &wl.TypeMeta
+func (pl *PackageList) GetObjectKind() schema.ObjectKind {
+	return &pl.TypeMeta
 }
 
 func (fl *FunctionList) GetListMeta() metav1.List {
@@ -220,9 +221,109 @@ func (wl *KubernetesWatchTriggerList) GetListMeta() metav1.List {
 func (wl *TimeTriggerList) GetListMeta() metav1.List {
 	return &wl.Metadata
 }
-func (wl *MessageQueueTriggerList) GetListMeta() metav1.List {
-	return &wl.Metadata
+func (ml *MessageQueueTriggerList) GetListMeta() metav1.List {
+	return &ml.Metadata
 }
-func (wl *PackageList) GetListMeta() metav1.List {
-	return &wl.Metadata
+func (pl *PackageList) GetListMeta() metav1.List {
+	return &pl.Metadata
+}
+
+func validateMetadata(m metav1.ObjectMeta) (errs []string) {
+	for _, s := range []string{m.Name, m.Namespace} {
+		errs = append(errs, validation.IsDNS1123Label(s)...)
+	}
+	return errs
+}
+
+func (p *Package) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(p.Metadata)...)
+	errs = append(errs, p.Spec.Validate()...)
+	errs = append(errs, p.Status.Validate()...)
+	return errs
+}
+
+func (pl *PackageList) Validate() (errs []string) {
+	// not validate ListMeta
+	for _, p := range pl.Items {
+		errs = append(errs, p.Validate()...)
+	}
+	return errs
+}
+
+func (f *Function) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(f.Metadata)...)
+	errs = append(errs, f.Spec.Validate()...)
+	return errs
+}
+
+func (fl *FunctionList) Validate() (errs []string) {
+	for _, f := range fl.Items {
+		errs = append(errs, f.Validate()...)
+	}
+	return errs
+}
+
+func (e *Environment) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(e.Metadata)...)
+	errs = append(errs, e.Spec.Validate()...)
+	return errs
+}
+
+func (el *EnvironmentList) Validate() (errs []string) {
+	for _, e := range el.Items {
+		errs = append(errs, e.Validate()...)
+	}
+	return errs
+}
+
+func (h *HTTPTrigger) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(h.Metadata)...)
+	errs = append(errs, h.Spec.Validate()...)
+	return errs
+}
+
+func (hl *HTTPTriggerList) Validate() (errs []string) {
+	for _, h := range hl.Items {
+		errs = append(errs, h.Validate()...)
+	}
+	return errs
+}
+
+func (k *KubernetesWatchTrigger) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(k.Metadata)...)
+	errs = append(errs, k.Spec.Validate()...)
+	return errs
+}
+
+func (kl *KubernetesWatchTriggerList) Validate() (errs []string) {
+	for _, k := range kl.Items {
+		errs = append(errs, k.Validate()...)
+	}
+	return errs
+}
+
+func (t *TimeTrigger) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(t.Metadata)...)
+	errs = append(errs, t.Spec.Validate()...)
+	return errs
+}
+
+func (tl *TimeTriggerList) Validate() (errs []string) {
+	for _, t := range tl.Items {
+		errs = append(errs, t.Validate()...)
+	}
+	return errs
+}
+
+func (m *MessageQueueTrigger) Validate() (errs []string) {
+	errs = append(errs, validateMetadata(m.Metadata)...)
+	errs = append(errs, m.Spec.Validate()...)
+	return errs
+}
+
+func (ml *MessageQueueTriggerList) Validate() (errs []string) {
+	for _, m := range ml.Items {
+		errs = append(errs, m.Validate()...)
+	}
+	return errs
 }

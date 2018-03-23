@@ -19,6 +19,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,10 @@ import (
 )
 
 func (c *Client) FunctionCreate(f *crd.Function) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission Function object: %v", errs))
+	}
 
 	reqbody, err := json.Marshal(f)
 	if err != nil {
@@ -93,6 +98,11 @@ func (c *Client) FunctionGetRawDeployment(m *metav1.ObjectMeta) ([]byte, error) 
 }
 
 func (c *Client) FunctionUpdate(f *crd.Function) (*metav1.ObjectMeta, error) {
+	errs := f.Validate()
+	if len(errs) > 0 {
+		return nil, errors.New(fmt.Sprintf("Not a valid fission Function object: %v", errs))
+	}
+
 	reqbody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err
