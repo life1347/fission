@@ -63,9 +63,7 @@ func checkFunctionExistence(fissionClient *client.Client, fnName string) {
 		Name:      fnName,
 		Namespace: metav1.NamespaceDefault,
 	}
-	//if err := fission.ValidateResourceName(fnName); err != nil {
-	//	fatal(err.Error())
-	//}
+
 	_, err := fissionClient.FunctionGet(meta)
 	if err != nil {
 		fmt.Printf("function '%v' does not exist, use 'fission function create --name %v ...' to create the function\n", fnName, fnName)
@@ -88,6 +86,8 @@ func htCreate(c *cli.Context) error {
 		method = "GET"
 	}
 
+	checkFunctionExistence(client, fnName)
+
 	// just name triggers by uuid.
 	triggerName := uuid.NewV4().String()
 
@@ -108,8 +108,6 @@ func htCreate(c *cli.Context) error {
 
 	_, err := client.HTTPTriggerCreate(ht)
 	checkErr(err, "create HTTP trigger")
-
-	checkFunctionExistence(client, fnName)
 
 	fmt.Printf("trigger '%v' created\n", triggerName)
 	return err
@@ -132,6 +130,8 @@ func htUpdate(c *cli.Context) error {
 		fatal("Nothing to update. Use --function to specify a new function.")
 	}
 
+	checkFunctionExistence(client, newFn)
+
 	ht, err := client.HTTPTriggerGet(&metav1.ObjectMeta{
 		Name:      htName,
 		Namespace: metav1.NamespaceDefault,
@@ -144,8 +144,6 @@ func htUpdate(c *cli.Context) error {
 
 	_, err = client.HTTPTriggerUpdate(ht)
 	checkErr(err, "update HTTP trigger")
-
-	checkFunctionExistence(client, newFn)
 
 	fmt.Printf("trigger '%v' updated\n", htName)
 	return nil
