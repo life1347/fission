@@ -19,7 +19,6 @@ package crd
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/fission/fission"
 )
@@ -228,21 +227,18 @@ func (pl *PackageList) GetListMeta() metav1.List {
 	return &pl.Metadata
 }
 
-func validateMetadata(m metav1.ObjectMeta) (errs []string) {
-	for _, s := range []string{m.Name, m.Namespace} {
-		errs = append(errs, validation.IsDNS1123Label(s)...)
-	}
-	return errs
+func validateMetadata(field string, m metav1.ObjectMeta) []error {
+	return fission.ValidateKubeReference(field, m.Name, m.Namespace)
 }
 
-func (p *Package) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(p.Metadata)...)
+func (p *Package) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("Package", p.Metadata)...)
 	errs = append(errs, p.Spec.Validate()...)
 	errs = append(errs, p.Status.Validate()...)
 	return errs
 }
 
-func (pl *PackageList) Validate() (errs []string) {
+func (pl *PackageList) Validate() (errs []error) {
 	// not validate ListMeta
 	for _, p := range pl.Items {
 		errs = append(errs, p.Validate()...)
@@ -250,78 +246,78 @@ func (pl *PackageList) Validate() (errs []string) {
 	return errs
 }
 
-func (f *Function) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(f.Metadata)...)
+func (f *Function) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("Function", f.Metadata)...)
 	errs = append(errs, f.Spec.Validate()...)
 	return errs
 }
 
-func (fl *FunctionList) Validate() (errs []string) {
+func (fl *FunctionList) Validate() (errs []error) {
 	for _, f := range fl.Items {
 		errs = append(errs, f.Validate()...)
 	}
 	return errs
 }
 
-func (e *Environment) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(e.Metadata)...)
+func (e *Environment) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("Environment", e.Metadata)...)
 	errs = append(errs, e.Spec.Validate()...)
 	return errs
 }
 
-func (el *EnvironmentList) Validate() (errs []string) {
+func (el *EnvironmentList) Validate() (errs []error) {
 	for _, e := range el.Items {
 		errs = append(errs, e.Validate()...)
 	}
 	return errs
 }
 
-func (h *HTTPTrigger) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(h.Metadata)...)
+func (h *HTTPTrigger) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("HTTPTrigger", h.Metadata)...)
 	errs = append(errs, h.Spec.Validate()...)
 	return errs
 }
 
-func (hl *HTTPTriggerList) Validate() (errs []string) {
+func (hl *HTTPTriggerList) Validate() (errs []error) {
 	for _, h := range hl.Items {
 		errs = append(errs, h.Validate()...)
 	}
 	return errs
 }
 
-func (k *KubernetesWatchTrigger) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(k.Metadata)...)
+func (k *KubernetesWatchTrigger) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("KubernetesWatchTrigger", k.Metadata)...)
 	errs = append(errs, k.Spec.Validate()...)
 	return errs
 }
 
-func (kl *KubernetesWatchTriggerList) Validate() (errs []string) {
+func (kl *KubernetesWatchTriggerList) Validate() (errs []error) {
 	for _, k := range kl.Items {
 		errs = append(errs, k.Validate()...)
 	}
 	return errs
 }
 
-func (t *TimeTrigger) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(t.Metadata)...)
+func (t *TimeTrigger) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("TimeTrigger", t.Metadata)...)
 	errs = append(errs, t.Spec.Validate()...)
 	return errs
 }
 
-func (tl *TimeTriggerList) Validate() (errs []string) {
+func (tl *TimeTriggerList) Validate() (errs []error) {
 	for _, t := range tl.Items {
 		errs = append(errs, t.Validate()...)
 	}
 	return errs
 }
 
-func (m *MessageQueueTrigger) Validate() (errs []string) {
-	errs = append(errs, validateMetadata(m.Metadata)...)
+func (m *MessageQueueTrigger) Validate() (errs []error) {
+	errs = append(errs, validateMetadata("MessageQueueTrigger", m.Metadata)...)
 	errs = append(errs, m.Spec.Validate()...)
 	return errs
 }
 
-func (ml *MessageQueueTriggerList) Validate() (errs []string) {
+func (ml *MessageQueueTriggerList) Validate() (errs []error) {
 	for _, m := range ml.Items {
 		errs = append(errs, m.Validate()...)
 	}
