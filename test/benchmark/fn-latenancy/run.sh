@@ -9,7 +9,7 @@ echo "Pre-test cleanup"
 fission env delete --name nodejs || true
 
 echo "Creating nodejs env"
-fission env create --name nodejs --image fission/node-env --poolsize 10
+fission env create --name nodejs --image fission/node-env --poolsize 10 --graceperiod 30
 trap "fission env delete --name nodejs" EXIT
 
 sleep 10
