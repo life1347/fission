@@ -1,0 +1,6 @@
+116.82ms
+k6 run --duration 60s --vus 10 --rps 100 sample.js
+1.15s
+k6 run --duration 60s --vus 10 --rps 100 sample.js
+k6 run --duration 60s --vus 10 --rps 100 sample.js
+50.56ms

@@ -9,7 +9,7 @@ echo "Pre-test cleanup"
 fission env delete --name nodejs || true
 
 echo "Creating nodejs env"
-fission env create --name nodejs --image fission/node-env --poolsize 10 --graceperiod 30
+fission env create --name nodejs --image fission/node-env
 trap "fission env delete --name nodejs" EXIT
 
 sleep 10
@@ -25,7 +25,7 @@ fission route create --function $fn --url /$fn --method GET
 echo "Waiting for router to catch up"
 sleep 5
 
-echo "Benchmarking for single cold-start time"
+echo "Benchmarking for function latency cold-start time"
 
 # -e is not support in k6 official release yet.
 # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js

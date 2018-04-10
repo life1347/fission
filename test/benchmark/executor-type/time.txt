@@ -1,0 +1,6 @@
+http://127.0.0.1:8888/nodejs-hello-1523246562
+k6 run --duration 60s --vus 10 --rps 100 sample.js
+http://127.0.0.1:8888/nodejs-hello-1523265690
+http://35.201.129.79/nodejs-hello-1523345852
+http://127.0.0.1:8888/nodejs-hello-1523345980
+http://127.0.0.1:8888/nodejs-hello-1523346063
