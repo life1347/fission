@@ -44,13 +44,15 @@ do
     export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
 
     # Max users => no. of iteration * 100
-    export MAX_USERS=$((${i}*100))
-    export MAX_RPS=$((${MAX_USERS}*1))
+    MAX_USERS=$((${i}*100))
+    MAX_RPS=$((${MAX_USERS}*1))
 
     filePrefix="max-${MAX_USERS}-users-burst-load"
 
+    sleep 15 && k6 run --rps ${MAX_USERS} --vus ${MAX_RPS} --out json=${filePrefix}-raw.json sample.js
+
     # extract average request time from output
-    k6 run --out json="${filePrefix}-raw.json" sample.js
+    k6 run --rps 100 --vus 100 --out json="${filePrefix}-raw.json" sample.js
     jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
     picasso -file ${filePrefix}.json -o ${filePrefix}.png
 
