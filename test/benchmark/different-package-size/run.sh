@@ -5,21 +5,11 @@ set -euo pipefail
 ROOT=$(dirname $0)/../../..
 
 
-for s in 0
+for i in 0..1
 do
-
-    rm -rf pkg.zip pkg/ || true
-    mkdir pkg
-    cp $ROOT/examples/python/hello.py pkg/hello.py
-
-    # Create empty file with give size to simulate different size of package
-    gtruncate -s ${s}MiB pkg/foo
-
-    zip -jr pkg.zip pkg/
-    pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
-
-    for i in 0..1
+    for s in 0
     do
+
         # Create a hello world function in nodejs, test it with an http trigger
         echo "Pre-test cleanup"
         fission env delete --name python || true
@@ -32,6 +22,19 @@ do
         sleep 20
 
         fn=python-hello-$(date +%s)
+
+
+        echo "Creating package"
+        rm -rf pkg.zip pkg/ || true
+        mkdir pkg
+        cp $ROOT/examples/python/hello.py pkg/hello.py
+
+        # Create empty file with give size to simulate different size of package
+        gtruncate -s ${s}MiB pkg/foo
+
+        zip -jr pkg.zip pkg/
+        pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
+
 
         echo "Creating function"
         fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main"
@@ -46,12 +49,11 @@ do
         # -e is not support in k6 official release yet.
         # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
         export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
+        export MAX_USERS=${i}
 
         # extract average request time from output
-        k6 run --vus 10 --duration 30s --rps 10 --out json=l1.json sample.js #| grep "http_req_duration" | awk '{print $2}'| sed 's/.*avg=*\(.*\).*/\1/' >> ${s}MB-time-size.txt
-        # ab -n 1 -c 1 $FN_ENDPOINT
+        k6 run --out json=l1.json sample.js
 
-        k6 run --vus 100 --duration 30s --rps 500 --out json=l2.json sample.js
 
         fission fn delete --name $fn
 
