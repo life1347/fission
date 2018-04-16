@@ -16,7 +16,7 @@ do
     fission env create --name python --version 2 --image fission/python-env --period 30
     trap "fission env delete --name python" EXIT
 
-    sleep 20
+    sleep 30
 
     fn=python-hello-$(date +%s)
 
@@ -49,10 +49,14 @@ do
 
     filePrefix="max-${MAX_USERS}-users-burst-load"
 
-    sleep 15 && k6 run --rps ${MAX_USERS} --vus ${MAX_RPS} --out json=${filePrefix}-raw.json sample.js
+    # -a: let k6 API server run on different address
+    # --duration: total load test time
+    # -rps: max rps across all vus
+    # --no-usage-report: disable showing report on console
+    sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_USERS} --vus ${MAX_RPS} --no-usage-report sample.js k6 &
 
     # extract average request time from output
-    k6 run --rps 100 --vus 100 --out json="${filePrefix}-raw.json" sample.js
+    k6 run --duration 60s --rps 100 --vus 100 --out json="${filePrefix}-raw.json" --no-usage-report sample.js
     jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
     picasso -file ${filePrefix}.json -o ${filePrefix}.png
 
