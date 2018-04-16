@@ -57,6 +57,9 @@ do
         # --no-usage-report: disable showing report on console
         sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_RPS} --vus ${MAX_USERS} --no-usage-report sample.js &
 
+        # remove old data
+        rm ${filePrefix}-raw.json ${filePrefix}.json ${filePrefix}.png
+
         # extract average request time from output
         k6 run --duration 60s --rps ${MAX_RPS} --vus ${MAX_USERS} --out json="${filePrefix}-raw.json" --no-usage-report sample.js
         jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
