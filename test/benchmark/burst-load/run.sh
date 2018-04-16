@@ -7,63 +7,66 @@ ROOT=$(dirname $0)/../../..
 
 for i in 1 2 3 4 5 6 7 8 9 10
 do
-    # Create a hello world function in nodejs, test it with an http trigger
-    echo "Pre-test cleanup"
-    fission env delete --name python || true
+    for executorType in poolmgr newdeploy
+    do
+        # Create a hello world function in nodejs, test it with an http trigger
+        echo "Pre-test cleanup"
+        fission env delete --name python || true
 
-    echo "Creating python env"
-    # Use short grace period time to speed up resource recycle time
-    fission env create --name python --version 2 --image fission/python-env --period 30
-    trap "fission env delete --name python" EXIT
+        echo "Creating python env"
+        # Use short grace period time to speed up resource recycle time
+        fission env create --name python --version 2 --image fission/python-env --period 30
+        trap "fission env delete --name python" EXIT
 
-    sleep 30
+        sleep 30
 
-    fn=python-hello-$(date +%s)
+        fn=python-hello-$(date +%s)
 
-    echo "Creating package"
-    rm -rf pkg.zip pkg/ || true
-    mkdir pkg
-    cp $ROOT/examples/python/hello.py pkg/hello.py
+        echo "Creating package"
+        rm -rf pkg.zip pkg/ || true
+        mkdir pkg
+        cp $ROOT/examples/python/hello.py pkg/hello.py
 
-    zip -jr pkg.zip pkg/
-    pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
+        zip -jr pkg.zip pkg/
+        pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
 
-    echo "Creating function"
-    fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main"
+        echo "Creating function"
+        fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType}
 
-    echo "Creating route"
-    fission route create --function $fn --url /$fn --method GET
+        echo "Creating route"
+        fission route create --function $fn --url /$fn --method GET
 
-    echo "Waiting for router to catch up"
-    sleep 5
+        echo "Waiting for router to catch up"
+        sleep 5
 
-    echo "Benchmarking for single cold-start time"
-    # -e is not support in k6 official release yet.
-    # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
+        echo "Benchmarking for single cold-start time"
+        # -e is not support in k6 official release yet.
+        # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
 
-    export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
+        export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
 
-    # Max users => no. of iteration * 100
-    MAX_USERS=$((${i}*100))
-    MAX_RPS=$((${MAX_USERS}*1))
+        # Max users => no. of iteration * 100
+        MAX_USERS=$((${i}*100))
+        MAX_RPS=$((${MAX_USERS}*1))
 
-    filePrefix="max-${MAX_USERS}-users-burst-load"
+        filePrefix="${executorType}-${MAX_RPS}"
 
-    # -a: let k6 API server run on different address
-    # --duration: total load test time
-    # -rps: max rps across all vus
-    # --no-usage-report: disable showing report on console
-    sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --batch ${MAX_RPS} --rps ${MAX_RPS} --vus ${MAX_USERS} --no-usage-report sample.js &
+        # -a: let k6 API server run on different address
+        # --duration: total load test time
+        # -rps: max rps across all vus
+        # --no-usage-report: disable showing report on console
+        sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_RPS} --vus ${MAX_USERS} --no-usage-report sample.js &
 
-    # extract average request time from output
-    k6 run --duration 60s --batch ${MAX_RPS} --rps ${MAX_RPS} --vus ${MAX_USERS} --out json="${filePrefix}-raw.json" --no-usage-report sample.js
-    jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
-    picasso -file ${filePrefix}.json -o ${filePrefix}.png
+        # extract average request time from output
+        k6 run --duration 60s --rps ${MAX_RPS} --vus ${MAX_USERS} --out json="${filePrefix}-raw.json" --no-usage-report sample.js
+        jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
+        picasso -file ${filePrefix}.json -o ${filePrefix}.png
 
-    echo "Clean up"
-    fission fn delete --name $fn
-    fission route list|grep $fn|awk '{print $1}'|xargs fission route delete --name
-    rm -rf pkg.zip pkg
+        echo "Clean up"
+        fission fn delete --name $fn
+        fission route list|grep $fn|awk '{print $1}'|xargs fission route delete --name
+        rm -rf pkg.zip pkg
 
-    echo "All done."
+        echo "All done."
+    done
 done
