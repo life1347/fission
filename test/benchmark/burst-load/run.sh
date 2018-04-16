@@ -51,14 +51,14 @@ do
 
         filePrefix="${executorType}-${MAX_RPS}"
 
+        # remove old data
+        rm ${filePrefix}-raw.json ${filePrefix}.json ${filePrefix}.png || true
+
         # -a: let k6 API server run on different address
         # --duration: total load test time
         # -rps: max rps across all vus
         # --no-usage-report: disable showing report on console
         sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_RPS} --vus ${MAX_USERS} --no-usage-report sample.js &
-
-        # remove old data
-        rm ${filePrefix}-raw.json ${filePrefix}.json ${filePrefix}.png || true
 
         # extract average request time from output
         k6 run --duration 60s --rps ${MAX_RPS} --vus ${MAX_USERS} --out json="${filePrefix}-raw.json" --no-usage-report sample.js
