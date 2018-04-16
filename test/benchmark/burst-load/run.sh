@@ -53,7 +53,7 @@ do
     # --duration: total load test time
     # -rps: max rps across all vus
     # --no-usage-report: disable showing report on console
-    sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_USERS} --vus ${MAX_RPS} --no-usage-report sample.js k6 &
+    sleep 15 && k6 run -a 127.0.0.1:6566 --duration 45s --rps ${MAX_USERS} --vus ${MAX_RPS} --no-usage-report sample.js &
 
     # extract average request time from output
     k6 run --duration 60s --rps 100 --vus 100 --out json="${filePrefix}-raw.json" --no-usage-report sample.js
