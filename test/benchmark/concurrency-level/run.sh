@@ -6,7 +6,7 @@ ROOT=$(dirname $0)/../../../..
 
 for executorType in poolmgr #newdeploy
 do
-    for concurrency in {1..2}
+    for concurrency in {1..10}
     do
 
         testDuration="10"
@@ -19,7 +19,7 @@ do
         pushd ${dirName}
 
         # run multiple iterations to reduce impact of imbalance of pod distribution.
-        for iteration in {1..3}
+        for iteration in {1..100}
         do
 
             # Create a hello world function in nodejs, test it with an http trigger
@@ -28,7 +28,7 @@ do
 
             echo "Creating python env"
             # Use short grace period time to speed up resource recycle time
-            fission env create --name python --version 2 --image fission/python-env --period 30 --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128
+            fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128
             trap "fission env delete --name python" EXIT
 
             sleep 30
@@ -57,9 +57,6 @@ do
             rawFile="raw-${iteration}.json"
             rawUsageReport="raw-usage.txt"
 
-            # cold start
-            curl ${fnEndpoint}
-
             k6 run \
                 -e FN_ENDPOINT="${fnEndpoint}" \
                 --duration "${testDuration}s" \
@@ -75,6 +72,8 @@ do
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
             fission pkg delete --name ${pkgName}
             rm -rf pkg.zip pkg
+
+            kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
 
             echo "All done."
         done
