@@ -3,11 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mongodb/mongo-tools/common/json"
@@ -15,8 +18,14 @@ import (
 )
 
 var (
-	file       *string
-	outputFile *string
+	file         *string
+	outputFile   *string
+	outputFormat *string
+)
+
+const (
+	PNG = "png"
+	SVG = "svg"
 )
 
 type (
@@ -46,21 +55,75 @@ type (
 
 func init() {
 	file = flag.String("file", "", "Metric json file")
-	outputFile = flag.String("o", "chart.png", "Output png file name")
+	outputFile = flag.String("o", "chart.png", "Output file name")
+	outputFormat = flag.String("format", PNG, "Format of output file (png or svg)")
 	flag.Parse()
 }
 
-func getFileReader(file string) (*bufio.Reader, error) {
+func generateContinuousSeries(file string) chart.Series {
 	f, err := os.OpenFile(file, os.O_RDONLY, 0644)
 	if err != nil {
-		return nil, err
+		fmt.Printf("Failed to open file metric point: %v", err)
+		return nil
 	}
-	return bufio.NewReader(f), nil
+	defer f.Close()
+
+	reader := bufio.NewReader(f)
+
+	var points []*MetricPoint
+	var xVals []float64
+	var yVals []float64
+
+	var initTime *time.Time
+
+	for {
+		l, _, err := reader.ReadLine()
+		if err == io.EOF {
+			break
+		}
+
+		point := &MetricPoint{}
+		err = json.Unmarshal(l, point)
+		if err != nil {
+			fmt.Printf("Failed to parse metric point: %v -> %v", err, string(l))
+			return nil
+		}
+
+		if point.Type != "Point" || point.Metric != "http_req_duration" {
+			continue
+		}
+
+		points = append(points, point)
+
+		if initTime == nil {
+			initTime = &point.Data.Time
+		}
+
+		timeSinceStart := point.Data.Time.Sub(*initTime).Seconds()
+		xVals = append(xVals, timeSinceStart)
+		yVals = append(yVals, point.Data.Value)
+	}
+
+	return chart.ContinuousSeries{
+		Style: chart.Style{
+			Show:        true,
+			StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
+			FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
+		},
+		XValues: xVals,
+		YValues: yVals,
+	}
 }
 
-func generateChart(file string, xVals []float64, yVals []float64) error {
+func generateChart(file string, format chart.RendererProvider, series []chart.Series) error {
+	if series == nil {
+		return errors.New("Series cannot be nil")
+	}
+
+	cs := chart.ConcatSeries(series)
+
 	graph := chart.Chart{
-		Title:      "Concurrency Level sdadads",
+		Title:      "Concurrency Level",
 		TitleStyle: chart.StyleShow(),
 		Background: chart.Style{
 			Padding: chart.Box{
@@ -76,7 +139,7 @@ func generateChart(file string, xVals []float64, yVals []float64) error {
 			Style:     chart.StyleShow(),
 			Range: &chart.ContinuousRange{
 				Min: 0,
-				Max: 60,
+				//Max: testDuration,
 			},
 		},
 		YAxis: chart.YAxis{
@@ -87,21 +150,11 @@ func generateChart(file string, xVals []float64, yVals []float64) error {
 				Min: 0,
 			},
 		},
-		Series: []chart.Series{
-			chart.ContinuousSeries{
-				Style: chart.Style{
-					Show:        true,
-					StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
-					FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
-				},
-				XValues: xVals,
-				YValues: yVals,
-			},
-		},
+		Series: cs,
 	}
 
 	buffer := bytes.NewBuffer([]byte{})
-	err := graph.Render(chart.PNG, buffer)
+	err := graph.Render(format, buffer)
 	if err != nil {
 		return err
 	}
@@ -114,6 +167,34 @@ func generateChart(file string, xVals []float64, yVals []float64) error {
 	return nil
 }
 
+func listJsonFiles(path string) ([]string, error) {
+	fi, err := os.Stat(*file)
+	if err != nil {
+		return nil, err
+	}
+
+	if fi.Mode().IsRegular() {
+		return []string{path}, nil
+	}
+
+	var files []string
+
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if strings.HasSuffix(path, ".json") && !info.IsDir() {
+			files = append(files, path)
+			return nil
+		}
+
+		return nil
+	})
+
+	return files, nil
+}
+
 func main() {
 
 	if file == nil || len(*file) == 0 {
@@ -121,46 +202,40 @@ func main() {
 		return
 	}
 
+	var format chart.RendererProvider
+
+	if outputFormat == nil {
+		format = chart.PNG
+	} else {
+		switch strings.ToLower(*outputFormat) {
+		case PNG:
+			format = chart.PNG
+		case SVG:
+			format = chart.SVG
+		default:
+			fmt.Println("Unknown format, use png as output format")
+			*outputFormat = PNG
+		}
+	}
+
 	if len(*outputFile) == 0 {
 		fmt.Println("Please output chart png file name")
 		return
 	}
 
-	reader, err := getFileReader(*file)
+	var series []chart.Series
+
+	files, err := listJsonFiles(*file)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Printf("Failed to get file information: %v", err)
 		return
 	}
 
-	var points []*MetricPoint
-	var xVals []float64
-	var yVals []float64
-
-	var initTime *time.Time
-
-	for {
-		l, _, err := reader.ReadLine()
-		if err == io.EOF {
-			break
-		}
-		point := &MetricPoint{}
-		err = json.Unmarshal(l, point)
-		if err != nil {
-			fmt.Printf("Failed to parse metric point: %v", err)
-			return
-		}
-		points = append(points, point)
-
-		if initTime == nil {
-			initTime = &point.Data.Time
-		}
-
-		timeSinceStart := point.Data.Time.Sub(*initTime).Seconds()
-		xVals = append(xVals, timeSinceStart)
-		yVals = append(yVals, point.Data.Value)
+	for _, f := range files {
+		series = append(series, generateContinuousSeries(f))
 	}
 
-	err = generateChart(*outputFile, xVals, yVals)
+	err = generateChart(*outputFile, format, series)
 	if err != nil {
 		fmt.Printf("Failed to generate chart: %v\n", err)
 	}
