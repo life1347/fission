@@ -28,7 +28,7 @@ do
 
             echo "Creating python env"
             # Use short grace period time to speed up resource recycle time
-            fission env create --name python --version 2 --image fission/python-env --period 30
+            fission env create --name python --version 2 --image fission/python-env --period 30 --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128
             trap "fission env delete --name python" EXIT
 
             sleep 30
@@ -44,8 +44,7 @@ do
             pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
 
             echo "Creating function"
-            fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} \
-                --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128 --minscale 3 --maxscale 3
+            fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} --minscale 3 --maxscale 3
 
             echo "Creating route"
             fission route create --function $fn --url /$fn --method GET
