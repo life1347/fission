@@ -45,7 +45,7 @@ type (
 )
 
 func init() {
-	file = flag.String("file", "", "Metric json file name")
+	file = flag.String("file", "", "Metric json file")
 	outputFile = flag.String("o", "chart.png", "Output png file name")
 	flag.Parse()
 }
@@ -60,14 +60,31 @@ func getFileReader(file string) (*bufio.Reader, error) {
 
 func generateChart(file string, xVals []float64, yVals []float64) error {
 	graph := chart.Chart{
+		Title:      "Concurrency Level sdadads",
+		TitleStyle: chart.StyleShow(),
+		Background: chart.Style{
+			Padding: chart.Box{
+				Top:    50,
+				Left:   25,
+				Right:  25,
+				Bottom: 10,
+			},
+		},
 		XAxis: chart.XAxis{
-			Style: chart.Style{
-				Show: true,
+			Name:      "Time (s)",
+			NameStyle: chart.StyleShow(),
+			Style:     chart.StyleShow(),
+			Range: &chart.ContinuousRange{
+				Min: 0,
+				Max: 60,
 			},
 		},
 		YAxis: chart.YAxis{
-			Style: chart.Style{
-				Show: true,
+			Name:      "Response Time (ms)",
+			NameStyle: chart.StyleShow(),
+			Style:     chart.StyleShow(),
+			Range: &chart.ContinuousRange{
+				Min: 0,
 			},
 		},
 		Series: []chart.Series{
