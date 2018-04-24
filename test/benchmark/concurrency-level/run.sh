@@ -6,12 +6,11 @@ ROOT=$(dirname $0)/../../../..
 
 for executorType in poolmgr #newdeploy
 do
-    for concurrency in {1..10}
+    for concurrency in 500 1000 1500 2000 2500 3000
     do
 
-        testDuration="10"
-        concurrencyLevel=$((${concurrency}*100))
-        dirName="concurrency-${concurrencyLevel}-executor-${executorType}"
+        testDuration="120"
+        dirName="concurrency-${concurrency}-executor-${executorType}"
 
         # remove old data
         rm -rf ${dirName}
@@ -19,7 +18,7 @@ do
         pushd ${dirName}
 
         # run multiple iterations to reduce impact of imbalance of pod distribution.
-        for iteration in {1..100}
+        for iteration in {1..10}
         do
 
             # Create a hello world function in nodejs, test it with an http trigger
@@ -28,10 +27,11 @@ do
 
             echo "Creating python env"
             # Use short grace period time to speed up resource recycle time
-            fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128
+            # Use high min/max CPU so that K8S will distribute pod in different nodes
+            fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 300 --maxcpu 300 --minmemory 256 --maxmemory 256
             trap "fission env delete --name python" EXIT
 
-            sleep 30
+            sleep 15
 
             fn=python-hello-$(date +%s)
 
@@ -60,14 +60,15 @@ do
             k6 run \
                 -e FN_ENDPOINT="${fnEndpoint}" \
                 --duration "${testDuration}s" \
-                --rps ${concurrencyLevel} \
-                --vus ${concurrencyLevel} \
+                --rps ${concurrency} \
+                --vus ${concurrency} \
                 --no-connection-reuse \
                 --out json="${rawFile}" \
                 --summary-trend-stats="avg,min,med,max,p(5),p(10),p(15),p(20),p(25),p(30),p(35),p(40),p(45),p(50),p(55),p(60),p(65),p(70),p(75),p(80),p(85),p(90),p(95),p(100)" \
                 ../${js} >> ${rawUsageReport}
 
             echo "Clean up"
+            fission env delete --name python
             fission fn delete --name ${fn}
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
             fission pkg delete --name ${pkgName}
