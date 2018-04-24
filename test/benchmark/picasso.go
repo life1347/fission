@@ -139,7 +139,9 @@ func generateChart(file string, format chart.RendererProvider, series []chart.Se
 			Style:     chart.StyleShow(),
 			Range: &chart.ContinuousRange{
 				Min: 0,
-				//Max: testDuration,
+			},
+			ValueFormatter: func(v interface{}) string {
+				return fmt.Sprintf("%.2f s", v.(float64))
 			},
 		},
 		YAxis: chart.YAxis{
@@ -148,6 +150,9 @@ func generateChart(file string, format chart.RendererProvider, series []chart.Se
 			Style:     chart.StyleShow(),
 			Range: &chart.ContinuousRange{
 				Min: 0,
+			},
+			ValueFormatter: func(v interface{}) string {
+				return fmt.Sprintf("%d ms", int(v.(float64)))
 			},
 		},
 		Series: cs,
