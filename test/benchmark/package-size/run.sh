@@ -6,11 +6,11 @@ ROOT=$(dirname $0)/../../../..
 
 for executorType in poolmgr #newdeploy
 do
-    for concurrency in 500 1000 1500 2000 2500 3000
+    for packagesize in 1 5 10 15 20
     do
 
-        testDuration="120"
-        dirName="concurrency-${concurrency}-executor-${executorType}"
+        testDuration="15"
+        dirName="package-size-${packagesize}-executor-${executorType}"
 
         # remove old data
         rm -rf ${dirName}
@@ -41,7 +41,7 @@ do
             cp $ROOT/examples/python/hello.py pkg/hello.py
 
             # Create empty file with give size to simulate different size of package
-            gtruncate -s ${i}MiB pkg/foo
+            truncate -s ${packagesize}MiB pkg/foo
 
             zip -jr pkg.zip pkg/
             pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
@@ -63,8 +63,8 @@ do
             k6 run \
                 -e FN_ENDPOINT="${fnEndpoint}" \
                 --duration "${testDuration}s" \
-                --rps ${concurrency} \
-                --vus ${concurrency} \
+                --rps 100 \
+                --vus 100 \
                 --no-connection-reuse \
                 --out json="${rawFile}" \
                 --summary-trend-stats="avg,min,med,max,p(5),p(10),p(15),p(20),p(25),p(30),p(35),p(40),p(45),p(50),p(55),p(60),p(65),p(70),p(75),p(80),p(85),p(90),p(95),p(100)" \

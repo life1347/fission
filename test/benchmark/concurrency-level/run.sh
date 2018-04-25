@@ -9,7 +9,7 @@ do
     for concurrency in 500 1000 1500 2000 2500 3000
     do
 
-        testDuration="120"
+        testDuration="60"
         dirName="concurrency-${concurrency}-executor-${executorType}"
 
         # remove old data

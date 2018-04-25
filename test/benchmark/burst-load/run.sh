@@ -6,8 +6,8 @@ ROOT=$(dirname $0)/../../../..
 
 for executorType in poolmgr #newdeploy
 do
-    testDuration="120"
-    dirName="concurrency-${concurrency}-executor-${executorType}"
+    testDuration="60"
+    dirName="burst-load-executor-${executorType}"
 
     # remove old data
     rm -rf ${dirName}
