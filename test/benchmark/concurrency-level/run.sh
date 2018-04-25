@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT=$(dirname $0)/../../../..
 
-for executorType in poolmgr #newdeploy
+for executorType in poolmgr newdeploy
 do
     for concurrency in 500 1000 1500 2000 2500 3000
     do

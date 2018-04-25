@@ -4,12 +4,12 @@ set -euo pipefail
 
 ROOT=$(dirname $0)/../../../..
 
-for executorType in poolmgr #newdeploy
+for executorType in poolmgr newdeploy
 do
-    for packagesize in 1 5 10 15 20
+    for packagesize in 0 1 5 10 15 20
     do
 
-        testDuration="15"
+        testDuration="10"
         dirName="package-size-${packagesize}-executor-${executorType}"
 
         # remove old data
@@ -28,26 +28,41 @@ do
             echo "Creating python env"
             # Use short grace period time to speed up resource recycle time
             # Use high min/max CPU so that K8S will distribute pod in different nodes
-            fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 300 --maxcpu 300 --minmemory 256 --maxmemory 256
+
+            version=2
+
+            if [[ "${packagesize}" == "0" ]]
+            then
+                version=1
+            fi
+
+            fission env create --name python --version ${version} --image fission/python-env --period 5 --mincpu 300 --maxcpu 300 --minmemory 256 --maxmemory 256
+
             trap "fission env delete --name python" EXIT
 
             sleep 15
 
             fn=python-hello-$(date +%s)
 
-            echo "Creating package"
-            rm -rf pkg.zip pkg/ || true
-            mkdir pkg
-            cp $ROOT/examples/python/hello.py pkg/hello.py
+            if [[ "${packagesize}" == "0" ]]
+            then
+                echo "Creating function"
+                fission fn create --name $fn --env python --code $ROOT/examples/python/hello.py --executortype ${executorType} --minscale 3 --maxscale 3
+            else
+                echo "Creating package"
+                rm -rf pkg.zip pkg/ || true
+                mkdir pkg
+                cp $ROOT/examples/python/hello.py pkg/hello.py
 
-            # Create empty file with give size to simulate different size of package
-            truncate -s ${packagesize}MiB pkg/foo
+                # Create empty file with give size to simulate different size of package
+                truncate -s ${packagesize}MiB pkg/foo
 
-            zip -jr pkg.zip pkg/
-            pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
+                zip -jr pkg.zip pkg/
+                pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
 
-            echo "Creating function"
-            fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} --minscale 3 --maxscale 3
+                echo "Creating function"
+                fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} --minscale 3 --maxscale 3
+            fi
 
             echo "Creating route"
             fission route create --function $fn --url /$fn --method GET
@@ -74,7 +89,7 @@ do
             fission env delete --name python
             fission fn delete --name ${fn}
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
-            fission pkg delete --name ${pkgName}
+            fission pkg delete --name ${pkgName} || true
             rm -rf pkg.zip pkg
 
             kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true

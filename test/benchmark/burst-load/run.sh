@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT=$(dirname $0)/../../../..
 
-for executorType in poolmgr #newdeploy
+for executorType in poolmgr newdeploy
 do
     testDuration="60"
     dirName="burst-load-executor-${executorType}"
