@@ -9,7 +9,7 @@ do
     for packagesize in 0 1 5 10 15 20
     do
 
-        testDuration="10"
+        testDuration="5"
         dirName="package-size-${packagesize}-executor-${executorType}"
 
         # remove old data
@@ -40,9 +40,11 @@ do
 
             trap "fission env delete --name python" EXIT
 
-            sleep 15
+            sleep 30
 
             fn=python-hello-$(date +%s)
+
+            pkgName=""
 
             if [[ "${packagesize}" == "0" ]]
             then
@@ -78,8 +80,8 @@ do
             k6 run \
                 -e FN_ENDPOINT="${fnEndpoint}" \
                 --duration "${testDuration}s" \
-                --rps 100 \
-                --vus 100 \
+                --rps 1 \
+                --vus 1 \
                 --no-connection-reuse \
                 --out json="${rawFile}" \
                 --summary-trend-stats="avg,min,med,max,p(5),p(10),p(15),p(20),p(25),p(30),p(35),p(40),p(45),p(50),p(55),p(60),p(65),p(70),p(75),p(80),p(85),p(90),p(95),p(100)" \
@@ -90,7 +92,7 @@ do
             fission fn delete --name ${fn}
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
 
-            if [[ -n "${pkgName}" ]]
+            if [[ ! -z "${pkgName}" ]]
             then
                 fission pkg delete --name ${pkgName} || true
                 rm -rf pkg.zip pkg
@@ -101,14 +103,14 @@ do
             echo "All done."
         done
 
+        popd
+
         usageReport="usage.txt"
         outImage="output.png"
 
         # generate report after iterations are over
-        ../../picasso -file ${dirName} -format png -o ${outImage}
+        ../picasso -file ${dirName} -format png -o ${outImage}
         cat ${rawUsageReport}| grep "http_req_duration"| cut -f2 -d':' > ${usageReport}
-
-        popd
 
     done
 done
