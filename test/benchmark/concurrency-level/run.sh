@@ -79,14 +79,14 @@ do
             echo "All done."
         done
 
+        usageReport="usage.txt"
+        cat ${rawUsageReport}| grep "http_req_duration"| cut -f2 -d':' > ${usageReport}
+
         popd
 
-        usageReport="usage.txt"
-        outImage="output.png"
-
         # generate report after iterations are over
+        outImage="${dirName}.png"
         ../picasso -file ${dirName} -format png -o ${outImage}
-        cat ${rawUsageReport}| grep "http_req_duration"| cut -f2 -d':' > ${usageReport}
 
     done
 done
