@@ -83,7 +83,7 @@ do
         outImage="output.png"
 
         # generate report after iterations are over
-        ../../picasso -file ${dirName} --duration ${testDuration} -o ${outImage}
+        ../../picasso -file ${dirName} -format png -o ${outImage}
         cat ${rawUsageReport}| grep "http_req_duration"| cut -f2 -d':' > ${usageReport}
 
         popd
