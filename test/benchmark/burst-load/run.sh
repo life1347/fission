@@ -2,23 +2,33 @@
 
 set -euo pipefail
 
-ROOT=$(dirname $0)/../../..
+ROOT=$(dirname $0)/../../../..
 
-
-for i in 1 2 3 4 5 6 7 8 9 10
+for executorType in poolmgr #newdeploy
 do
-    for executorType in poolmgr newdeploy
+    testDuration="120"
+    dirName="concurrency-${concurrency}-executor-${executorType}"
+
+    # remove old data
+    rm -rf ${dirName}
+    mkdir ${dirName}
+    pushd ${dirName}
+
+    # run multiple iterations to reduce impact of imbalance of pod distribution.
+    for iteration in {1..10}
     do
+
         # Create a hello world function in nodejs, test it with an http trigger
         echo "Pre-test cleanup"
         fission env delete --name python || true
 
         echo "Creating python env"
         # Use short grace period time to speed up resource recycle time
-        fission env create --name python --version 2 --image fission/python-env --period 30
+        # Use high min/max CPU so that K8S will distribute pod in different nodes
+        fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 300 --maxcpu 300 --minmemory 256 --maxmemory 256
         trap "fission env delete --name python" EXIT
 
-        sleep 30
+        sleep 15
 
         fn=python-hello-$(date +%s)
 
@@ -31,8 +41,7 @@ do
         pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
 
         echo "Creating function"
-        fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} \
-            --mincpu 100 --maxcpu 100 --minmemory 128 --maxmemory 128 --minscale 3 --maxscale 3
+        fission fn create --name $fn --env python --pkg ${pkgName} --entrypoint "hello.main" --executortype ${executorType} --minscale 3 --maxscale 3
 
         echo "Creating route"
         fission route create --function $fn --url /$fn --method GET
@@ -40,40 +49,44 @@ do
         echo "Waiting for router to catch up"
         sleep 5
 
-        echo "Benchmarking for single cold-start time"
-        # -e is not support in k6 official release yet.
-        # k6 run -e FN_ENDPOINT="http://$FISSION_ROUTER/$fn" sample.js
+        fnEndpoint="http://$FISSION_ROUTER/$fn"
+        js="sample.js"
+        rawFile="raw-${iteration}.json"
+        rawUsageReport="raw-usage.txt"
 
-        export FN_ENDPOINT="http://$FISSION_ROUTER/$fn"
 
-        # Max users => no. of iteration * 100
-        MAX_USERS=$((${i}*100))
-        MAX_RPS=$((${MAX_USERS}*1))
+        # simulate a large traffic comes to router after 15 seconds
+        sleep 15 && k6 run -a 127.0.0.1:6566 --duration 105s --rps 500 --vus 500 --no-usage-report sample.js &
 
-        filePrefix="${executorType}-${MAX_RPS}"
-
-        # remove old data
-        rm ${filePrefix}-raw.json ${filePrefix}.json ${filePrefix}.png || true
-
-        # cold start
-        curl ${FN_ENDPOINT}
-
-        # -a: let k6 API server run on different address
-        # --duration: total load test time
-        # -rps: max rps across all vus
-        # --no-usage-report: disable showing report on console
-        sleep 15 && k6 run -a 127.0.0.1:6566 --duration 105s --rps ${MAX_RPS} --vus ${MAX_USERS} --no-usage-report sample.js &
-
-        # extract average request time from output
-        k6 run --duration 120s --rps ${MAX_RPS} --vus ${MAX_USERS} --out json="${filePrefix}-raw.json" --no-usage-report sample.js
-        jq -cr '. | select(.type=="Point" and .metric == "http_req_duration" and .data.tags.status >= "200")' ${filePrefix}-raw.json > ${filePrefix}.json
-        picasso -file ${filePrefix}.json -o ${filePrefix}.png
+        k6 run \
+            -e FN_ENDPOINT="${fnEndpoint}" \
+            --duration "${testDuration}s" \
+            --rps 50 \
+            --vus 50 \
+            --no-connection-reuse \
+            --out json="${rawFile}" \
+            --summary-trend-stats="avg,min,med,max,p(5),p(10),p(15),p(20),p(25),p(30),p(35),p(40),p(45),p(50),p(55),p(60),p(65),p(70),p(75),p(80),p(85),p(90),p(95),p(100)" \
+            ../${js} >> ${rawUsageReport}
 
         echo "Clean up"
-        fission fn delete --name $fn
-        fission route list|grep $fn|awk '{print $1}'|xargs fission route delete --name
+        fission env delete --name python
+        fission fn delete --name ${fn}
+        fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
+        fission pkg delete --name ${pkgName}
         rm -rf pkg.zip pkg
+
+        kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
 
         echo "All done."
     done
+
+    usageReport="usage.txt"
+    outImage="output.png"
+
+    # generate report after iterations are over
+    ../../picasso -file ${dirName} -format png -o ${outImage}
+    cat ${rawUsageReport}| grep "http_req_duration"| cut -f2 -d':' > ${usageReport}
+
+    popd
+
 done

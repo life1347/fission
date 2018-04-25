@@ -1,2 +1,0 @@
-k6 run --duration 60s --vus 10 --rps 100 sample.js
-83.07ms
