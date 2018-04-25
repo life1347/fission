@@ -89,8 +89,12 @@ do
             fission env delete --name python
             fission fn delete --name ${fn}
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
-            fission pkg delete --name ${pkgName} || true
-            rm -rf pkg.zip pkg
+
+            if [[ "${pkgName}" != "" ]]
+            then
+                fission pkg delete --name ${pkgName} || true
+                rm -rf pkg.zip pkg
+            fi
 
             kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
 
