@@ -90,7 +90,7 @@ do
             fission fn delete --name ${fn}
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
 
-            if [[ "${pkgName}" != "" ]]
+            if [[ -n "${pkgName}" ]]
             then
                 fission pkg delete --name ${pkgName} || true
                 rm -rf pkg.zip pkg
