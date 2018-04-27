@@ -38,7 +38,7 @@ do
             echo "Creating package"
             rm -rf pkg.zip pkg/ || true
             mkdir pkg
-            cp $ROOT/examples/python/hello.py pkg/hello.py
+            cp ../../../assets/hello.py pkg/hello.py
 
             zip -jr pkg.zip pkg/
             pkgName=$(fission pkg create --env python --deploy pkg.zip | cut -d' ' -f 2 | cut -d"'" -f 2)
@@ -86,7 +86,7 @@ do
 
         # generate report after iterations are over
         outImage="${dirName}.png"
-        ../picasso -file ${dirName} -format png -o ${outImage}
+        picasso -file ${dirName} -format png -o ${outImage}
 
     done
 done

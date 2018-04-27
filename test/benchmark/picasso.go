@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	title        *string
 	file         *string
 	outputFile   *string
 	outputFormat *string
@@ -54,6 +55,7 @@ type (
 )
 
 func init() {
+	title = flag.String("title", "Fission Benchmark", "Chart title")
 	file = flag.String("file", "", "Metric json file")
 	outputFile = flag.String("o", "chart.png", "Output file name")
 	outputFormat = flag.String("format", PNG, "Format of output file (png or svg)")
@@ -115,7 +117,7 @@ func generateContinuousSeries(file string) chart.Series {
 	}
 }
 
-func generateChart(file string, format chart.RendererProvider, series []chart.Series) error {
+func generateChart(title string, file string, format chart.RendererProvider, series []chart.Series) error {
 	if series == nil {
 		return errors.New("Series cannot be nil")
 	}
@@ -123,7 +125,7 @@ func generateChart(file string, format chart.RendererProvider, series []chart.Se
 	cs := chart.ConcatSeries(series)
 
 	graph := chart.Chart{
-		Title:      "Concurrency Level",
+		Title:      title,
 		TitleStyle: chart.StyleShow(),
 		Background: chart.Style{
 			Padding: chart.Box{
@@ -240,7 +242,7 @@ func main() {
 		series = append(series, generateContinuousSeries(f))
 	}
 
-	err = generateChart(*outputFile, format, series)
+	err = generateChart(*title, *outputFile, format, series)
 	if err != nil {
 		fmt.Printf("Failed to generate chart: %v\n", err)
 	}

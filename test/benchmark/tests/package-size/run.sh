@@ -49,12 +49,12 @@ do
             if [[ "${packagesize}" == "0" ]]
             then
                 echo "Creating function"
-                fission fn create --name $fn --env python --code $ROOT/examples/python/hello.py --executortype ${executorType} --minscale 3 --maxscale 3
+                fission fn create --name $fn --env python --code ../../../assets/hello.py --executortype ${executorType} --minscale 3 --maxscale 3
             else
                 echo "Creating package"
                 rm -rf pkg.zip pkg/ || true
                 mkdir pkg
-                cp $ROOT/examples/python/hello.py pkg/hello.py
+                cp ../../../assets/hello.py pkg/hello.py
 
                 # Create empty file with give size to simulate different size of package
                 truncate -s ${packagesize}MiB pkg/foo
@@ -98,7 +98,7 @@ do
                 rm -rf pkg.zip pkg
             fi
 
-            kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
+            #kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
 
             echo "All done."
         done
@@ -110,7 +110,7 @@ do
 
         # generate report after iterations are over
         outImage="${dirName}.png"
-        ../picasso -file ${dirName} -format png -o ${outImage}
+        picasso -file ${dirName} -format png -o ${outImage}
 
     done
 done
