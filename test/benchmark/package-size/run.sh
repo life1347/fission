@@ -88,8 +88,8 @@ do
                 ../${js} >> ${rawUsageReport}
 
             echo "Clean up"
-            fission env delete --name python
             fission fn delete --name ${fn}
+            fission env delete --name python
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
 
             if [[ ! -z "${pkgName}" ]]

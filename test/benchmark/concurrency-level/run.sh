@@ -6,7 +6,7 @@ ROOT=$(dirname $0)/../../../..
 
 for executorType in poolmgr newdeploy
 do
-    for concurrency in 500 1000 1500 2000 2500 3000
+    for concurrency in 100 250 500 750 1000
     do
 
         testDuration="60"
@@ -68,8 +68,8 @@ do
                 ../${js} >> ${rawUsageReport}
 
             echo "Clean up"
-            fission env delete --name python
             fission fn delete --name ${fn}
+            fission env delete --name python
             fission route list| grep ${fn}| awk '{print $1}'| xargs fission route delete --name
             fission pkg delete --name ${pkgName}
             rm -rf pkg.zip pkg
