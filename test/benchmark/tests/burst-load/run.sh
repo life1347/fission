@@ -53,6 +53,9 @@ do
         rawFile="raw-${iteration}.json"
         rawUsageReport="raw-usage.txt"
 
+        # Stage 1: 15s, 10 vus
+        # Stage 2: 45s, 500 vus
+        # Please check sample.js for more detail.
         k6 run \
             -e FN_ENDPOINT="${fnEndpoint}" \
             --no-connection-reuse \

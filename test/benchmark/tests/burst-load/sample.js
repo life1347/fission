@@ -9,6 +9,7 @@ export let options = {
 };
 
 export default function() {
+    let params = { timeout: 30 }
     let res = http.get(`${__ENV.FN_ENDPOINT}`)
     check(res, {
         "status is 200": (r) => r.status === 200
