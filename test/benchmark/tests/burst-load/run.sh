@@ -27,7 +27,7 @@ do
         fission env create --name python --version 2 --image fission/python-env --period 5 --mincpu 300 --maxcpu 300 --minmemory 256 --maxmemory 256
         trap "fission env delete --name python" EXIT
 
-        sleep 15
+        sleep 30
 
         fn=python-hello-$(date +%s)
 
