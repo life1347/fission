@@ -74,6 +74,7 @@ do
             fission pkg delete --name ${pkgName}
             rm -rf pkg.zip pkg
 
+            kubectl -n fission-function get deploy -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
             kubectl -n fission-function get pod -o name|xargs -I@ bash -c "kubectl -n fission-function delete @" || true
 
             echo "All done."
