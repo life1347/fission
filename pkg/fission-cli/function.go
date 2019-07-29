@@ -28,7 +28,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/fission/fission/pkg/types"
 	"github.com/satori/go.uuid"
 	"github.com/urfave/cli"
 	apiv1 "k8s.io/api/core/v1"
@@ -37,9 +36,14 @@ import (
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	ferror "github.com/fission/fission/pkg/error"
+	"github.com/fission/fission/pkg/fission-cli/cliwrapper/driver/urfavecli"
+	"github.com/fission/fission/pkg/fission-cli/cmd"
+	cmdutils "github.com/fission/fission/pkg/fission-cli/cmd"
+	"github.com/fission/fission/pkg/fission-cli/cmd/spec"
 	"github.com/fission/fission/pkg/fission-cli/log"
 	"github.com/fission/fission/pkg/fission-cli/logdb"
 	"github.com/fission/fission/pkg/fission-cli/util"
+	"github.com/fission/fission/pkg/types"
 )
 
 const (
@@ -188,13 +192,13 @@ func fnCreate(c *cli.Context) error {
 	}
 
 	// user wants a spec, create a yaml file with package and function
-	spec := false
+	toSpec := false
 	specFile := ""
 	if c.Bool("spec") {
-		spec = true
+		toSpec = true
 		specFile = fmt.Sprintf("function-%v.yaml", fnName)
 	}
-	specDir := getSpecDir(c)
+	specDir := cmdutils.GetSpecDir(urfavecli.Parse(c))
 
 	// check for unique function names within a namespace
 	fnList, err := client.FunctionList(fnNamespace)
@@ -215,7 +219,10 @@ func fnCreate(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resourceReq := getResourceReq(c, apiv1.ResourceRequirements{})
+	resourceReq, err := cmd.GetResourceReqs(urfavecli.Parse(c), &apiv1.ResourceRequirements{})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var pkgMetadata *metav1.ObjectMeta
 	var envName string
@@ -240,7 +247,7 @@ func fnCreate(c *cli.Context) error {
 		}
 
 		// examine existence of given environment. If specs - then spec validate will do it, don't check here.
-		if !spec {
+		if !toSpec {
 			_, err := client.EnvironmentGet(&metav1.ObjectMeta{
 				Namespace: envNamespace,
 				Name:      envName,
@@ -332,14 +339,14 @@ func fnCreate(c *cli.Context) error {
 			},
 			Secrets:        secrets,
 			ConfigMaps:     cfgmaps,
-			Resources:      resourceReq,
+			Resources:      *resourceReq,
 			InvokeStrategy: *invokeStrategy,
 		},
 	}
 
 	// if we're writing a spec, don't create the function
-	if spec {
-		err = specSave(*function, specFile)
+	if toSpec {
+		err = spec.SpecSave(*function, specFile)
 		util.CheckErr(err, "create function spec")
 		return nil
 
@@ -556,7 +563,12 @@ func fnUpdate(c *cli.Context) error {
 		log.Fatal(err)
 	}
 	function.Spec.InvokeStrategy = *strategy
-	function.Spec.Resources = getResourceReq(c, function.Spec.Resources)
+	resReqs, err := cmd.GetResourceReqs(urfavecli.Parse(c), &function.Spec.Resources)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	function.Spec.Resources = *resReqs
 
 	pkg, err := client.PackageGet(&metav1.ObjectMeta{
 		Namespace: fnNamespace,
