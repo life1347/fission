@@ -48,9 +48,9 @@ push_builder_image() {
 
 push_env_image() {
     local version=$1
-    envdir=$2
-    imgnamebase=$3
-    imgvariant=$4
+    local envdir=$2
+    local imgnamebase=$3
+    local imgvariant=$4
 
     if [ -z "$imgvariant" ]
     then 
@@ -59,7 +59,7 @@ push_env_image() {
     else 
         # variant specified - append variant to image name and assume dockerfile 
         # exists with same suffix (e.g. image node-env-debian built from Dockerfile-debian)
-        imgname="$imgname-$imgvariant"
+        imgname="$imgnamebase-$imgvariant"
     fi
     echo "Pushing $envdir -> $imgname:$version"
 
@@ -264,12 +264,11 @@ generate_changelog() {
     echo
     echo "[Documentation](https://docs.fission.io/)" >> new_CHANGELOG.md
     echo
-
+    
     create_downloads_table ${version} >> new_CHANGELOG.md
-
     # generate changelog from github
     github_changelog_generator fission/fission -t ${GITHUB_TOKEN} --future-release ${version} --no-issues -o tmp_CHANGELOG.md
-    sed -i '' -e '$ d' tmp_CHANGELOG.md
+    sed -i '$ d' tmp_CHANGELOG.md
 
     # concatenate two files
     cat tmp_CHANGELOG.md >> new_CHANGELOG.md
@@ -327,26 +326,26 @@ then
   chartsrepo="$DIR../fission-charts"
 fi
 
-release_environment_check $version $chartsrepo
+#release_environment_check $version $chartsrepo
 
 # Build release-builder image
-docker build -t fission-release-builder -f $GOPATH/src/github.com/fission/fission/hack/Dockerfile .
+#docker build -t fission-release-builder -f $GOPATH/src/github.com/fission/fission/hack/Dockerfile .
 
 # Build all binaries & container images in docker
 # Here we mount docker.sock into container so that docker client can communicate with host docker daemon.
 # For more detail please visit https://docs.docker.com/machine/overview/
-docker run --rm -v $GOPATH/src:/go/src -v /var/run/docker.sock:/var/run/docker.sock \
-    -e VERSION=$version -w "/go/src/github.com/fission/fission/hack" fission-release-builder sh -c "./release-build.sh"
+#docker run --rm -v $GOPATH/src:/go/src -v /var/run/docker.sock:/var/run/docker.sock \
+#    -e VERSION=$version -w "/go/src/github.com/fission/fission/hack" fission-release-builder sh -c "./release-build.sh"
 
-push_all $version
-push_all_envs $version
-push_all_env_builders $version
+#push_all $version
+#push_all_envs $version
+#push_all_env_builders $version
 
-tag_and_release $version
-attach_github_release_cli $version
-attach_github_release_charts $version
-attach_github_release_yamls $version
-update_github_charts_repo $version $chartsrepo
+#tag_and_release $version
+#attach_github_release_cli $version
+#attach_github_release_charts $version
+#attach_github_release_yamls $version
+#update_github_charts_repo $version $chartsrepo
 
 generate_changelog $version
 
