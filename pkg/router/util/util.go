@@ -62,9 +62,10 @@ func GetDeployLabels(trigger *fv1.HTTPTrigger) map[string]string {
 	}
 }
 
-func GetPodNamespace() string {
-	podNamespace := os.Getenv("POD_NAMESPACE")
-	if podNamespace == "" {
-		podNamespace = "fission"
-	}
-}
+//func GetPodNamespace() string {
+//	podNamespace := os.Getenv("POD_NAMESPACE")
+//	if podNamespace == "" {
+//		podNamespace = "fission"
+//	}
+//
+//}
