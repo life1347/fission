@@ -437,10 +437,30 @@ func (spec HTTPTriggerSpec) Validate() error {
 
 	result = multierror.Append(result, spec.FunctionReference.Validate())
 
-	if len(spec.Host) > 0 {
-		e := validation.IsDNS1123Subdomain(spec.Host)
-		if len(e) > 0 {
-			result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "HTTPTriggerSpec.Host", spec.Host, e...))
+	return result.ErrorOrNil()
+}
+
+func (config IngressConfig) Validate() error {
+	result := &multierror.Error{}
+
+	for _, rule := range config.Rules {
+		result = multierror.Append(result, rule.Validate())
+	}
+
+	return result.ErrorOrNil()
+}
+
+func (rule IngressRule) Validate() error {
+	result := &multierror.Error{}
+
+	if len(rule.Path) > 0 {
+		if !strings.HasPrefix(rule.Path, "/") {
+			result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "HTTPTriggerSpec.IngressConfig.IngressRule.Path", rule.Path, "must be an absolute path"))
+		}
+
+		_, err := regexp.CompilePOSIX(rule.Path)
+		if err != nil {
+			result = multierror.Append(result, MakeValidationErr(ErrorInvalidValue, "HTTPTriggerSpec.IngressConfig.IngressRule.Host", rule.Host, "must be a valid regex"))
 		}
 	}
 

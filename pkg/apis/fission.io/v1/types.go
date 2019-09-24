@@ -553,14 +553,39 @@ type (
 		// RelativeURL is the exposed URL for external client to access a function with.
 		RelativeURL string `json:"relativeurl"`
 
-		// If CreateIngress is true, router will create a ingress definition.
-		CreateIngress bool `json:"createingress"`
-
 		// HTTP method to access a function.
 		Method string `json:"method"`
 
 		// FunctionReference is a reference to the target function.
 		FunctionReference FunctionReference `json:"functionref"`
+
+		// If CreateIngress is true, router will create a ingress definition.
+		CreateIngress bool `json:"createingress"`
+
+		// TODO: make IngressConfig a independent Fission resource
+		// IngressConfig for router to set up Ingress.
+		IngressConfig IngressConfig `json:"ingressconfig"`
+	}
+
+	// IngressConfig is for router to set up Ingress.
+	IngressConfig struct {
+		// Annotations will be add to metadata when creating Ingress.
+		Annotations map[string]string `json:"annotations"`
+
+		// Host rules to configure Ingress.
+		// For now, we only accept "one" rule until we make IngressConfig a
+		// independent resource.
+		Rules []IngressRule `json:"rule"`
+	}
+
+	// IngressRule is for router to create rules of an ingress resource.
+	IngressRule struct {
+		// Path is for path matching. The format of path
+		// depends on what ingress controller you used.
+		Path string `json:"path"`
+
+		// Host to match targeted host
+		Host string `json:"host"`
 	}
 
 	// KubernetesWatchTriggerSpec

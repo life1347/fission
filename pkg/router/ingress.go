@@ -20,14 +20,12 @@ import (
 	"os"
 
 	"go.uber.org/zap"
-	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
+	"github.com/fission/fission/pkg/router/util"
 )
 
 var podNamespace string
@@ -47,55 +45,12 @@ func createIngress(logger *zap.Logger, trigger *fv1.HTTPTrigger, kubeClient *kub
 	if err == nil {
 		return
 	}
-
-	ing := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDeployLabels(trigger),
-			Name:   trigger.Metadata.Name,
-			// The Ingress NS MUST be same as Router NS, check long discussion:
-			// https://github.com/kubernetes/kubernetes/issues/17088
-			// We need to revisit this in future, once Kubernetes supports cross namespace ingress
-			Namespace: podNamespace,
-		},
-		Spec: v1beta1.IngressSpec{
-			Rules: []v1beta1.IngressRule{
-				{
-					Host: trigger.Spec.Host,
-					IngressRuleValue: v1beta1.IngressRuleValue{
-						HTTP: &v1beta1.HTTPIngressRuleValue{
-							Paths: []v1beta1.HTTPIngressPath{
-								{
-									Backend: v1beta1.IngressBackend{
-										ServiceName: "router",
-										ServicePort: intstr.IntOrString{
-											Type:   intstr.Int,
-											IntVal: 80,
-										},
-									},
-									Path: trigger.Spec.RelativeURL,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Create(ing)
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses(podNamespace).Create(util.GetIngressSpec(podNamespace, trigger))
 	if err != nil {
 		logger.Error("failed to create ingress", zap.Error(err))
 		return
 	}
 	logger.Debug("created ingress successfully for trigger", zap.String("trigger", trigger.Metadata.Name))
-}
-
-func getDeployLabels(trigger *fv1.HTTPTrigger) map[string]string {
-	return map[string]string{
-		"triggerName":      trigger.Metadata.Name,
-		"functionName":     trigger.Spec.FunctionReference.Name,
-		"triggerNamespace": trigger.Metadata.Namespace,
-	}
 }
 
 func deleteIngress(logger *zap.Logger, trigger *fv1.HTTPTrigger, kubeClient *kubernetes.Clientset) {

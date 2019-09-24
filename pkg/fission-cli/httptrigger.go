@@ -143,10 +143,9 @@ func htCreate(c *cli.Context) error {
 		}
 	}
 
-	createIngress := false
-	if c.IsSet("createingress") {
-		createIngress = c.Bool("createingress")
-	}
+	createIngress := c.Bool("createingress")
+	ingressConfig, err := getIngressConfig(c.StringSlice("ingressannotation"), c.String("ingressrule"), nil)
+	util.CheckErr(err, "parse ingress configuration")
 
 	host := c.String("host")
 
@@ -166,6 +165,7 @@ func htCreate(c *cli.Context) error {
 			Method:            getMethod(method),
 			FunctionReference: *functionRef,
 			CreateIngress:     createIngress,
+			IngressConfig:     *ingressConfig,
 		},
 	}
 
@@ -262,8 +262,9 @@ func htUpdate(c *cli.Context) error {
 		ht.Spec.CreateIngress = c.Bool("createingress")
 	}
 
-	if c.IsSet("host") {
-		ht.Spec.Host = c.String("host")
+	if c.IsSet("ingressrule") || c.IsSet("ingressannotation") {
+		_, err = getIngressConfig(c.StringSlice("ingressannotation"), c.String("ingressrule"), &ht.Spec.IngressConfig)
+		util.CheckErr(err, "parse ingress configuration")
 	}
 
 	_, err = client.HTTPTriggerUpdate(ht)
@@ -308,4 +309,37 @@ func htList(c *cli.Context) error {
 	w.Flush()
 
 	return nil
+}
+
+// getIngressConfig returns an IngressConfig based on user inputs and return error if any.
+func getIngressConfig(annotations []string, rule string, ingressConfig *fv1.IngressConfig) (*fv1.IngressConfig, error) {
+	if ingressConfig == nil {
+		ingressConfig = &fv1.IngressConfig{
+			Annotations: make(map[string]string),
+		}
+	}
+
+	for _, ann := range annotations {
+		v := strings.Split(ann, "=")
+		if len(v) < 2 {
+			return nil, fmt.Errorf("illegal ingress annotation: %v", ann)
+		}
+		key, val := v[0], v[1]
+		ingressConfig.Annotations[key] = val
+	}
+
+	if len(rule) > 0 {
+		v := strings.Split(rule, "=")
+		if len(v) < 2 {
+			return nil, fmt.Errorf("illegal ingress rule: %v", rule)
+		}
+		ingressConfig.Rules = []fv1.IngressRule{
+			{
+				Host: v[0],
+				Path: v[1],
+			},
+		}
+	}
+
+	return ingressConfig, nil
 }
