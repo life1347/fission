@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	k8sCache "k8s.io/client-go/tools/cache"
 
-	"github.com/fission/fission/pkg/utils"
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	"github.com/fission/fission/pkg/cache"
 	"github.com/fission/fission/pkg/crd"
@@ -43,6 +42,7 @@ import (
 	"github.com/fission/fission/pkg/executor/reaper"
 	fetcherConfig "github.com/fission/fission/pkg/fetcher/config"
 	"github.com/fission/fission/pkg/types"
+	"github.com/fission/fission/pkg/utils"
 )
 
 var _ executortype.ExecutorType = &GenericPoolManager{}
@@ -326,7 +326,7 @@ func (gpm *GenericPoolManager) adoptOrphanResources() {
 		envMap[key] = env
 	}
 
-	l := map[string]string {
+	l := map[string]string{
 		types.EXECUTOR_TYPE: string(fv1.ExecutorTypePoolmgr),
 	}
 
@@ -360,7 +360,7 @@ func (gpm *GenericPoolManager) adoptOrphanResources() {
 			svcHost, ok7 := pod.Annotations[types.ANNOTATION_SVC_HOST]
 			env, ok8 := envMap[fmt.Sprintf("%v/%v", envNS, envName)]
 
-			if ! (ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8) {
+			if !(ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8) {
 				gpm.logger.Warn("failed to adopt pod for function due to lack necessary information",
 					zap.String("pod", pod.Name), zap.Any("labels", pod.Labels), zap.Any("annotations", pod.Annotations),
 					zap.String("env", env.Metadata.Name))

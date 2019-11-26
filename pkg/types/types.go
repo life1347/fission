@@ -121,14 +121,14 @@ const (
 
 // executor kubernetes object label key
 const (
-	ENVIRONMENT_NAMESPACE = "environmentNamespace"
-	ENVIRONMENT_NAME      = "environmentName"
-	ENVIRONMENT_UID       = "environmentUid"
-	FUNCTION_NAMESPACE    = "functionNamespace"
-	FUNCTION_NAME         = "functionName"
-	FUNCTION_UID          = "functionUid"
-	FUNCTION_RESOURCE_VERSION    = "functionResourceVersion"
-	EXECUTOR_TYPE         = "executorType"
+	ENVIRONMENT_NAMESPACE     = "environmentNamespace"
+	ENVIRONMENT_NAME          = "environmentName"
+	ENVIRONMENT_UID           = "environmentUid"
+	FUNCTION_NAMESPACE        = "functionNamespace"
+	FUNCTION_NAME             = "functionName"
+	FUNCTION_UID              = "functionUid"
+	FUNCTION_RESOURCE_VERSION = "functionResourceVersion"
+	EXECUTOR_TYPE             = "executorType"
 )
 
 const (

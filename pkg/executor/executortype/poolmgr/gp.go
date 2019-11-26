@@ -33,12 +33,12 @@ import (
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
+	k8sErrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	k8sTypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	k8sTypes "k8s.io/apimachinery/pkg/types"
-	k8sErrs "k8s.io/apimachinery/pkg/api/errors"
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	"github.com/fission/fission/pkg/crd"
@@ -162,14 +162,14 @@ func (gp *GenericPool) getDeployLabels() map[string]string {
 func (gp *GenericPool) choosePodService(ctx context.Context) {
 	for {
 		select {
-		case req := <- gp.requestChannel:
+		case req := <-gp.requestChannel:
 			pod, err := gp._choosePod(req.newLabels)
 			if err != nil {
 				req.responseChannel <- &choosePodResponse{error: err}
 				continue
 			}
 			req.responseChannel <- &choosePodResponse{pod: pod}
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -260,7 +260,7 @@ func (gp *GenericPool) labelsForFunction(metadata *metav1.ObjectMeta) map[string
 	label[types.FUNCTION_UID] = string(metadata.UID)
 	label[types.FUNCTION_NAMESPACE] = metadata.Namespace // function CRD must stay within same namespace of environment CRD
 	label[types.FUNCTION_RESOURCE_VERSION] = metadata.ResourceVersion
-	label["managed"] = "false"                           // this allows us to easily find pods not managed by the deployment
+	label["managed"] = "false" // this allows us to easily find pods not managed by the deployment
 	return label
 
 }
