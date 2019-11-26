@@ -164,8 +164,8 @@ func (executor *Executor) tapServices(w http.ResponseWriter, r *http.Request) {
 		err = et.TapService(svcHost)
 		if err != nil {
 			errs = multierror.Append(errs,
-				errors.Wrapf(err, "'%v' failed to tap function '%v/%v' with service url '%v'",
-					req.FnMetadata.Namespace, req.FnMetadata.Name, req.ServiceUrl, req.FnExecutorType))
+				errors.Wrapf(err, "'%v' failed to tap function '%v' in '%v' with service url '%v'",
+					req.FnMetadata.Name, req.FnMetadata.Namespace, req.ServiceUrl, req.FnExecutorType))
 		}
 	}
 

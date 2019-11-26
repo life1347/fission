@@ -210,7 +210,6 @@ func StartExecutor(logger *zap.Logger, functionNamespace string, envBuilderNames
 	restClient := fissionClient.GetCrdClient()
 
 	poolID := strings.ToLower(uniuri.NewLen(8))
-	reaper.CleanupOldExecutorObjects(logger, kubernetesClient, poolID)
 	go reaper.CleanupRoleBindings(logger, kubernetesClient, fissionClient, functionNamespace, envBuilderNamespace, time.Minute*30)
 
 	gpm := poolmgr.MakeGenericPoolManager(
@@ -234,6 +233,7 @@ func StartExecutor(logger *zap.Logger, functionNamespace string, envBuilderNames
 		return err
 	}
 
+	go reaper.CleanupOldExecutorObjects(logger, kubernetesClient, poolID)
 	go api.Serve(port)
 	go serveMetric(logger)
 

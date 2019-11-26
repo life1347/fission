@@ -127,7 +127,12 @@ const (
 	FUNCTION_NAMESPACE    = "functionNamespace"
 	FUNCTION_NAME         = "functionName"
 	FUNCTION_UID          = "functionUid"
+	FUNCTION_RESOURCE_VERSION    = "functionResourceVersion"
 	EXECUTOR_TYPE         = "executorType"
+)
+
+const (
+	ANNOTATION_SVC_HOST = "svcHost"
 )
 
 const (

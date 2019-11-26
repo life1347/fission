@@ -38,13 +38,11 @@ var (
 
 // CleanupOldExecutorObjects cleans up resources created by old executor instances
 func CleanupOldExecutorObjects(logger *zap.Logger, kubernetesClient *kubernetes.Clientset, instanceId string) {
-	go func() {
-		err := cleanup(logger, kubernetesClient, instanceId)
-		if err != nil {
-			// TODO retry reaper; logged and ignored for now
-			logger.Error("Failed to cleanup old executor objects", zap.Error(err))
-		}
-	}()
+	err := cleanup(logger, kubernetesClient, instanceId)
+	if err != nil {
+		// TODO retry reaper; logged and ignored for now
+		logger.Error("Failed to cleanup old executor objects", zap.Error(err))
+	}
 }
 
 func cleanup(logger *zap.Logger, client *kubernetes.Clientset, instanceId string) error {

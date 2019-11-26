@@ -37,6 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	k8sTypes "k8s.io/apimachinery/pkg/types"
+	k8sErrs "k8s.io/apimachinery/pkg/api/errors"
 
 	fv1 "github.com/fission/fission/pkg/apis/fission.io/v1"
 	"github.com/fission/fission/pkg/crd"
@@ -67,6 +69,7 @@ type (
 		labelsForPool          map[string]string
 		requestChannel         chan *choosePodRequest
 		fetcherConfig          *fetcherConfig.Config
+		stopCh                 context.CancelFunc
 	}
 
 	// serialize the choosing of pods so that choices don't conflict
@@ -97,6 +100,8 @@ func MakeGenericPool(
 
 	gpLogger.Info("creating pool", zap.Any("environment", env.Metadata))
 
+	ctx, stopCh := context.WithCancel(context.Background())
+
 	// TODO: in general we need to provide the user a way to configure pools.  Initial
 	// replicas, autoscaling params, various timeouts, etc.
 	gp := &GenericPool{
@@ -116,6 +121,7 @@ func MakeGenericPool(
 		instanceId:        instanceId,
 		useSvc:            false,       // defaults off -- svc takes a second or more to become routable, slowing cold start
 		useIstio:          enableIstio, // defaults off -- istio integration requires pod relabeling and it takes a second or more to become routable, slowing cold start
+		stopCh:            stopCh,
 	}
 
 	gp.runtimeImagePullPolicy = utils.GetImagePullPolicy(os.Getenv("RUNTIME_IMAGE_PULL_POLICY"))
@@ -136,7 +142,7 @@ func MakeGenericPool(
 	}
 	gpLogger.Info("deployment created", zap.Any("environment", env.Metadata))
 
-	go gp.choosePodService()
+	go gp.choosePodService(ctx)
 
 	return gp, nil
 }
@@ -153,14 +159,19 @@ func (gp *GenericPool) getDeployLabels() map[string]string {
 }
 
 // choosePodService serializes the choosing of pods
-func (gp *GenericPool) choosePodService() {
-	for req := range gp.requestChannel {
-		pod, err := gp._choosePod(req.newLabels)
-		if err != nil {
-			req.responseChannel <- &choosePodResponse{error: err}
-			continue
+func (gp *GenericPool) choosePodService(ctx context.Context) {
+	for {
+		select {
+		case req := <- gp.requestChannel:
+			pod, err := gp._choosePod(req.newLabels)
+			if err != nil {
+				req.responseChannel <- &choosePodResponse{error: err}
+				continue
+			}
+			req.responseChannel <- &choosePodResponse{pod: pod}
+		case <- ctx.Done():
+			return
 		}
-		req.responseChannel <- &choosePodResponse{pod: pod}
 	}
 }
 
@@ -248,6 +259,7 @@ func (gp *GenericPool) labelsForFunction(metadata *metav1.ObjectMeta) map[string
 	label[types.FUNCTION_NAME] = metadata.Name
 	label[types.FUNCTION_UID] = string(metadata.UID)
 	label[types.FUNCTION_NAMESPACE] = metadata.Namespace // function CRD must stay within same namespace of environment CRD
+	label[types.FUNCTION_RESOURCE_VERSION] = metadata.ResourceVersion
 	label["managed"] = "false"                           // this allows us to easily find pods not managed by the deployment
 	return label
 
@@ -330,7 +342,7 @@ func (gp *GenericPool) specializePod(ctx context.Context, pod *apiv1.Pod, fn *fv
 
 // getPoolName returns a unique name of an environment
 func (gp *GenericPool) getPoolName() string {
-	return strings.ToLower(fmt.Sprintf("poolmgr-%v-%v-%v", gp.env.Metadata.Name, gp.env.Metadata.Namespace, uniuri.NewLen(8)))
+	return strings.ToLower(fmt.Sprintf("poolmgr-%v-%v-%v", gp.env.Metadata.Name, gp.env.Metadata.Namespace, gp.env.Metadata.ResourceVersion))
 }
 
 // A pool is a deployment of generic containers for an env.  This
@@ -434,11 +446,25 @@ func (gp *GenericPool) createPool() error {
 		deployment.Spec.Template.Spec = *newPodSpec
 	}
 
+	_, err = gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Get(deployment.Name, metav1.GetOptions{})
+	if err == nil {
+		patch := fmt.Sprintf(`{"metadata":{"labels":{"%v":"%v"}}}`, fv1.EXECUTOR_INSTANCEID_LABEL, gp.instanceId)
+		depl, err := gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Patch(deployment.Name, k8sTypes.StrategicMergePatchType, []byte(patch))
+		if err == nil {
+			gp.deployment = depl
+			return nil
+		}
+	} else if !k8sErrs.IsNotFound(err) {
+		gp.logger.Error("error getting deployment in kubernetes", zap.Error(err), zap.String("deployment", deployment.Name))
+		return err
+	}
+
 	depl, err := gp.kubernetesClient.AppsV1().Deployments(gp.namespace).Create(deployment)
 	if err != nil {
 		gp.logger.Error("error creating deployment in kubernetes", zap.Error(err), zap.String("deployment", deployment.Name))
 		return err
 	}
+
 	gp.deployment = depl
 	return nil
 }
@@ -497,7 +523,7 @@ func (gp *GenericPool) createSvc(name string, labels map[string]string) (*apiv1.
 			Ports: []apiv1.ServicePort{
 				{
 					Protocol:   apiv1.ProtocolTCP,
-					Port:       80,
+					Port:       8888,
 					TargetPort: intstr.FromInt(8888),
 				},
 			},
@@ -584,12 +610,23 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 
 		// the fission router isn't in the same namespace, so return a
 		// namespace-qualified hostname
-		svcHost = fmt.Sprintf("%v.%v", svcName, gp.namespace)
+		svcHost = fmt.Sprintf("%v.%v:8888", svcName, gp.namespace)
 	} else if gp.useIstio {
 		svc := utils.GetFunctionIstioServiceName(fn.Metadata.Name, fn.Metadata.Namespace)
 		svcHost = fmt.Sprintf("%v.%v:8888", svc, gp.namespace)
 	} else {
 		svcHost = fmt.Sprintf("%v:8888", pod.Status.PodIP)
+	}
+
+	// patch svc-host to the pod annotations for new executor to adopt the pod
+	patch := fmt.Sprintf(`{"metadata":{"annotations":{"%v":"%v"}}}`, types.ANNOTATION_SVC_HOST, svcHost)
+	p, err := gp.kubernetesClient.CoreV1().Pods(pod.Namespace).Patch(pod.Name, k8sTypes.StrategicMergePatchType, []byte(patch))
+	if err != nil {
+		// just log the error since it won't affect the function serving
+		gp.logger.Warn("error patching svc-host to pod", zap.Error(err),
+			zap.String("pod", pod.Name), zap.String("ns", pod.Namespace))
+	} else {
+		pod = p
 	}
 
 	gp.logger.Info("specialized pod",
@@ -634,10 +671,13 @@ func (gp *GenericPool) getFuncSvc(ctx context.Context, fn *fv1.Function) (*fscac
 
 // destroys the pool -- the deployment, replicaset and pods
 func (gp *GenericPool) destroy() error {
+	gp.stopCh()
+
 	deletePropagation := metav1.DeletePropagationBackground
 	delOpt := metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagation,
 	}
+
 	err := gp.kubernetesClient.AppsV1().
 		Deployments(gp.namespace).Delete(gp.deployment.ObjectMeta.Name, &delOpt)
 	if err != nil {

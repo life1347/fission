@@ -168,7 +168,9 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 
 	_, err := deploy.kubernetesClient.CoreV1().Services(service[1]).Get(service[0], metav1.GetOptions{})
 	if err != nil {
-		deploy.logger.Error("error validating function service address", zap.String("function", fsvc.Function.Name), zap.Error(err))
+		if !k8sErrs.IsNotFound(err) {
+			deploy.logger.Error("error validating function service address", zap.String("function", fsvc.Function.Name), zap.Error(err))
+		}
 		return false
 	}
 
@@ -181,7 +183,9 @@ func (deploy *NewDeploy) IsValid(fsvc *fscache.FuncSvc) bool {
 	currentDeploy, err := deploy.kubernetesClient.AppsV1().
 		Deployments(deployObj.Namespace).Get(deployObj.Name, metav1.GetOptions{})
 	if err != nil {
-		deploy.logger.Error("error validating function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
+		if !k8sErrs.IsNotFound(err) {
+			deploy.logger.Error("error validating function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
+		}
 		return false
 	}
 
@@ -671,6 +675,7 @@ func (deploy *NewDeploy) getDeployLabels(fnMeta metav1.ObjectMeta, envMeta metav
 		types.FUNCTION_NAME:             fnMeta.Name,
 		types.FUNCTION_NAMESPACE:        fnMeta.Namespace,
 		types.FUNCTION_UID:              string(fnMeta.UID),
+		types.FUNCTION_RESOURCE_VERSION: fnMeta.ResourceVersion,
 	}
 }
 
@@ -736,7 +741,7 @@ func (deploy *NewDeploy) idleObjectReaper() {
 			currentDeploy, err := deploy.kubernetesClient.AppsV1().
 				Deployments(deployObj.Namespace).Get(deployObj.Name, metav1.GetOptions{})
 			if err != nil {
-				deploy.logger.Error("error validating function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
+				deploy.logger.Error("error getting function deployment", zap.Error(err), zap.String("function", fsvc.Function.Name))
 				continue
 			}
 
