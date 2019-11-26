@@ -565,7 +565,7 @@ func (gpm *GenericPoolManager) idleObjectReaper() {
 			}
 
 			go func() {
-				deleted, err := gpm.fsCache.DeleteOld(fsvc, gpm.idlePodReapTime)
+				deleted, err := gpm.fsCache.DeleteOld(fsvc,  gpm.idlePodReapTime)
 				if err != nil {
 					gpm.logger.Error("error deleting Kubernetes objects for function service",
 						zap.Error(err),
