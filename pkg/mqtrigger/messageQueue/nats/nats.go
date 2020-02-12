@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package messageQueue
+package nats
 
 import (
 	"bytes"
@@ -24,11 +24,12 @@ import (
 	"strings"
 
 	ns "github.com/nats-io/go-nats-streaming"
-	nsUtil "github.com/nats-io/nats-streaming-server/util"
 	"go.uber.org/zap"
+	nsUtil "github.com/nats-io/nats-streaming-server/util"
 
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
 	"github.com/fission/fission/pkg/utils"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
 )
 
 const (
@@ -46,7 +47,7 @@ type (
 	}
 )
 
-func makeNatsMessageQueue(logger *zap.Logger, routerUrl string, mqCfg MessageQueueConfig) (MessageQueue, error) {
+func New(logger *zap.Logger, routerUrl string, mqCfg messageQueue.MessageQueueConfig) (messageQueue.MessageQueue, error) {
 	conn, err := ns.Connect(natsClusterID, natsClientID, ns.NatsURL(mqCfg.Url),
 		ns.SetConnectionLostHandler(func(conn ns.Conn, reason error) {
 			// TODO: Better way to handle connection lost problem.
@@ -68,7 +69,7 @@ func makeNatsMessageQueue(logger *zap.Logger, routerUrl string, mqCfg MessageQue
 	return nats, nil
 }
 
-func (nats Nats) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubscription, error) {
+func (nats Nats) Subscribe(trigger *fv1.MessageQueueTrigger) (messageQueue.MessageQueueSubscription, error) {
 	subj := trigger.Spec.Topic
 
 	if !isTopicValidForNats(subj) {
@@ -92,7 +93,7 @@ func (nats Nats) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubscr
 	return sub, nil
 }
 
-func (nats Nats) unsubscribe(subscription messageQueueSubscription) error {
+func (nats Nats) Unsubscribe(subscription messageQueue.MessageQueueSubscription) error {
 	return subscription.(ns.Subscription).Close()
 }
 
@@ -212,5 +213,8 @@ func msgHandler(nats *Nats, trigger *fv1.MessageQueueTrigger) func(*ns.Msg) {
 			}
 		}
 	}
+}
 
+func IsTopicValid(topic string) bool {
+	return nsUtil.IsChannelNameValid(topic, false)
 }

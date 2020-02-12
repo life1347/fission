@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package messageQueue
+package azurequeuestorage
 
 import (
 	"bytes"
@@ -27,12 +27,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"regexp"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/fission/fission/pkg/utils"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
 )
 
@@ -50,6 +52,10 @@ const (
 	AzurePoisonQueueSuffix = "-poison"
 	// AzureFunctionInvocationTimeout is the amount of time to wait for a triggered function to execute.
 	AzureFunctionInvocationTimeout = 10 * time.Minute
+)
+
+var (
+	validAzureQueueName = regexp.MustCompile(`^[a-z0-9][a-z0-9\\-]*[a-z0-9]$`)
 )
 
 // AzureStorageConnection represents an Azure storage connection.
@@ -173,7 +179,7 @@ func newAzureQueueService(client storage.Client) AzureQueueService {
 	}
 }
 
-func newAzureStorageConnection(logger *zap.Logger, routerURL string, config MessageQueueConfig) (MessageQueue, error) {
+func New(logger *zap.Logger, routerURL string, config messageQueue.MessageQueueConfig) (messageQueue.MessageQueue, error) {
 	account := os.Getenv("AZURE_STORAGE_ACCOUNT_NAME")
 	if len(account) == 0 {
 		return nil, errors.New("Required environment variable 'AZURE_STORAGE_ACCOUNT_NAME' is not set")
@@ -200,7 +206,7 @@ func newAzureStorageConnection(logger *zap.Logger, routerURL string, config Mess
 	}, nil
 }
 
-func (asc AzureStorageConnection) subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubscription, error) {
+func (asc AzureStorageConnection) Subscribe(trigger *fv1.MessageQueueTrigger) (messageQueue.MessageQueueSubscription, error) {
 	asc.logger.Info("subscribing to Azure storage queue", zap.String("queue", trigger.Spec.Topic))
 
 	if trigger.Spec.FunctionReference.Type != fv1.FunctionReferenceTypeFunctionName {
@@ -224,7 +230,7 @@ func (asc AzureStorageConnection) subscribe(trigger *fv1.MessageQueueTrigger) (m
 	return subscription, nil
 }
 
-func (asc AzureStorageConnection) unsubscribe(subscription messageQueueSubscription) error {
+func (asc AzureStorageConnection) Unsubscribe(subscription messageQueue.MessageQueueSubscription) error {
 	sub := subscription.(*AzureQueueSubscription)
 
 	asc.logger.Info("unsubscribing from Azure storage queue", zap.String("queue", sub.queueName))
@@ -393,4 +399,8 @@ func invokeTriggeredFunction(conn AzureStorageConnection, sub *AzureQueueSubscri
 			zap.String("function_url", sub.functionURL))
 		return
 	}
+}
+
+func IsTopicValid(topic string) bool {
+	return len(topic) >= 3 && len(topic) <= 63 && validAzureQueueName.MatchString(topic)
 }

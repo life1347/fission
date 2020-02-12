@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package messageQueue
+package mqtrigger
 
 import (
 	"errors"
@@ -25,6 +25,10 @@ import (
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/kafka"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/nats"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/azurequeuestorage"
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
 	"github.com/fission/fission/pkg/crd"
 )
@@ -36,32 +40,19 @@ const (
 )
 
 type (
-	messageQueueSubscription interface{}
-
 	requestType int
-
-	MessageQueueConfig struct {
-		MQType  string
-		Url     string
-		Secrets map[string][]byte
-	}
-
-	MessageQueue interface {
-		subscribe(trigger *fv1.MessageQueueTrigger) (messageQueueSubscription, error)
-		unsubscribe(triggerSub messageQueueSubscription) error
-	}
 
 	MessageQueueTriggerManager struct {
 		logger        *zap.Logger
 		reqChan       chan request
 		triggers      map[string]*triggerSubscription
 		fissionClient *crd.FissionClient
-		messageQueue  MessageQueue
+		messageQueue  messageQueue.MessageQueue
 	}
 
 	triggerSubscription struct {
 		trigger      fv1.MessageQueueTrigger
-		subscription messageQueueSubscription
+		subscription messageQueue.MessageQueueSubscription
 	}
 
 	request struct {
@@ -75,8 +66,8 @@ type (
 	}
 )
 
-func MakeMessageQueueTriggerManager(logger *zap.Logger, fissionClient *crd.FissionClient, routerUrl string, mqConfig MessageQueueConfig) *MessageQueueTriggerManager {
-	var messageQueue MessageQueue
+func MakeMessageQueueTriggerManager(logger *zap.Logger, fissionClient *crd.FissionClient, routerUrl string, mqConfig messageQueue.MessageQueueConfig) *MessageQueueTriggerManager {
+	var messageQueue messageQueue.MessageQueue
 	var err error
 
 	mqTriggerMgr := MessageQueueTriggerManager{
@@ -87,21 +78,26 @@ func MakeMessageQueueTriggerManager(logger *zap.Logger, fissionClient *crd.Fissi
 	}
 	switch mqConfig.MQType {
 	case fv1.MessageQueueTypeNats:
-		messageQueue, err = makeNatsMessageQueue(logger, routerUrl, mqConfig)
+		messageQueue, err = nats.New(logger, routerUrl, mqConfig)
 	case fv1.MessageQueueTypeASQ:
-		messageQueue, err = newAzureStorageConnection(logger, routerUrl, mqConfig)
+		messageQueue, err = azurequeuestorage.New(logger, routerUrl, mqConfig)
 	case fv1.MessageQueueTypeKafka:
-		messageQueue, err = makeKafkaMessageQueue(logger, routerUrl, mqConfig)
+		messageQueue, err = kafka.New(logger, routerUrl, mqConfig)
 	default:
 		err = fmt.Errorf("no supported message queue type found for %q", mqConfig.MQType)
 	}
 	if err != nil {
 		logger.Fatal("failed to connect to remote message queue server", zap.Error(err))
 	}
+
 	mqTriggerMgr.messageQueue = messageQueue
-	go mqTriggerMgr.service()
-	go mqTriggerMgr.syncTriggers()
+
 	return &mqTriggerMgr
+}
+
+func (mqt *MessageQueueTriggerManager) Run() {
+	go mqt.service()
+	go mqt.syncTriggers()
 }
 
 func (mqt *MessageQueueTriggerManager) service() {
@@ -189,7 +185,7 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 			}
 
 			// actually subscribe using the message queue client impl
-			sub, err := mqt.messageQueue.subscribe(trigger)
+			sub, err := mqt.messageQueue.Subscribe(trigger)
 			if err != nil {
 				mqt.logger.Warn("failed to subscribe to message queue trigger", zap.Error(err), zap.String("trigger_name", trigger.ObjectMeta.Name))
 				continue
@@ -214,7 +210,7 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 			if _, ok := newTriggerMap[key]; ok {
 				continue
 			}
-			err := mqt.messageQueue.unsubscribe(triggerSub.subscription)
+			err := mqt.messageQueue.Unsubscribe(triggerSub.subscription)
 			if err != nil {
 				mqt.logger.Warn("failed to unsubscribe from message queue trigger", zap.Error(err), zap.String("trigger_name", triggerSub.trigger.ObjectMeta.Name))
 				continue
@@ -228,12 +224,14 @@ func (mqt *MessageQueueTriggerManager) syncTriggers() {
 	}
 }
 
-func IsTopicValid(mqType string, topic string) bool {
+func IsTopicValid(mqType fv1.MessageQueueType, topic string) bool {
 	switch mqType {
 	case fv1.MessageQueueTypeNats:
-		return isTopicValidForNats(topic)
+		return nats.IsTopicValid(topic)
+	case fv1.MessageQueueTypeASQ:
+		return azurequeuestorage.IsTopicValid(topic)
 	case fv1.MessageQueueTypeKafka:
-		return isTopicValidForKafka(topic)
+		return kafka.IsTopicValid(topic)
 	}
 	return false
 }

@@ -28,6 +28,7 @@ import (
 
 	"github.com/fission/fission/pkg/crd"
 	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
+	"github.com/fission/fission/pkg/mqtrigger"
 )
 
 func Start(logger *zap.Logger, routerUrl string) error {
@@ -62,7 +63,10 @@ func Start(logger *zap.Logger, routerUrl string) error {
 		Url:     mqUrl,
 		Secrets: secrets,
 	}
-	messageQueue.MakeMessageQueueTriggerManager(logger, fissionClient, routerUrl, mqCfg)
+
+	mqtmgr := mqtrigger.MakeMessageQueueTriggerManager(logger, fissionClient, routerUrl, mqCfg)
+	mqtmgr.Run()
+
 	return nil
 }
 
