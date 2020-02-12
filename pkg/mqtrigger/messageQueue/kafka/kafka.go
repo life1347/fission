@@ -23,9 +23,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 
 	sarama "github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"

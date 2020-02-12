@@ -27,8 +27,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/fission/fission/pkg/crd"
-	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
 	"github.com/fission/fission/pkg/mqtrigger"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
 )
 
 func Start(logger *zap.Logger, routerUrl string) error {

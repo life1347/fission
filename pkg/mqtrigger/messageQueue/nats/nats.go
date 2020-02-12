@@ -24,12 +24,12 @@ import (
 	"strings"
 
 	ns "github.com/nats-io/go-nats-streaming"
-	"go.uber.org/zap"
 	nsUtil "github.com/nats-io/nats-streaming-server/util"
+	"go.uber.org/zap"
 
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
-	"github.com/fission/fission/pkg/utils"
 	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
+	"github.com/fission/fission/pkg/utils"
 )
 
 const (

@@ -25,12 +25,12 @@ import (
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fission/fission/pkg/mqtrigger/messageQueue/kafka"
-	"github.com/fission/fission/pkg/mqtrigger/messageQueue/nats"
-	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
-	"github.com/fission/fission/pkg/mqtrigger/messageQueue/azurequeuestorage"
 	fv1 "github.com/fission/fission/pkg/apis/core/v1"
 	"github.com/fission/fission/pkg/crd"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/azurequeuestorage"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/kafka"
+	"github.com/fission/fission/pkg/mqtrigger/messageQueue/nats"
 )
 
 const (

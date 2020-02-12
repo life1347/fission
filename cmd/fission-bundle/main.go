@@ -28,6 +28,7 @@ import (
 	"go.opencensus.io/trace"
 	"go.uber.org/zap"
 
+	"github.com/fission/fission/cmd/fission-bundle/mqtrigger"
 	"github.com/fission/fission/pkg/buildermgr"
 	"github.com/fission/fission/pkg/controller"
 	"github.com/fission/fission/pkg/executor"
@@ -37,7 +38,6 @@ import (
 	"github.com/fission/fission/pkg/router"
 	"github.com/fission/fission/pkg/storagesvc"
 	"github.com/fission/fission/pkg/timer"
-	"github.com/fission/fission/cmd/fission-bundle/mqtrigger"
 )
 
 func runController(logger *zap.Logger, port int) {
